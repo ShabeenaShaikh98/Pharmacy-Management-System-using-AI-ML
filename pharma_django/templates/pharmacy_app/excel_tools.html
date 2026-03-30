@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Excel Tools{% endblock %}
+{% block topbar_icon %}file-earmark-excel{% endblock %}
+{% block topbar_title %}Excel Import / Export{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-file-earmark-excel"></i> Excel Import / Export</h4>
+    <div class="breadcrumb-ph">Download medicines to Excel or upload an updated sheet back into inventory.</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="c-card h-100">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-download"></i> Export Medicines</div>
+      </div>
+      <div class="c-card-body">
+        <p class="text-muted mb-3" style="font-size:13px;">
+          Download the current medicine catalog as an Excel file. You can use this file as your import template too.
+        </p>
+        <a href="{% url 'export_medicines_excel' %}" class="btn-ph btn-ph-success">
+          <i class="bi bi-filetype-xlsx"></i> Download Excel File
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="c-card h-100">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-upload"></i> Import Medicines</div>
+      </div>
+      <div class="c-card-body">
+        <p class="text-muted mb-3" style="font-size:13px;">
+          Upload an `.xlsx` file with these columns:
+          <code>name</code>, <code>generic_name</code>, <code>presentation</code>, <code>volume</code>,
+          <code>unit_price</code>, <code>selling_price</code>, <code>quantity</code>, <code>expire_date</code>,
+          <code>supplier</code>, <code>description</code>.
+        </p>
+        <form method="post" action="{% url 'import_medicines_excel' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label-ph" for="excel_file">Excel File</label>
+            <input type="file" class="form-ph" id="excel_file" name="excel_file" accept=".xlsx" required>
+          </div>
+          <button type="submit" class="btn-ph btn-ph-primary">
+            <i class="bi bi-cloud-upload"></i> Import Excel
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}ML Recommender{% endblock %}
+{% block topbar_icon %}stars{% endblock %}
+{% block topbar_title %}ML Medicine Recommender{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h4><i class="bi bi-stars"></i> ML Medicine Recommender</h4><div class="breadcrumb-ph">AI-powered medicine search using TF-IDF + K-Nearest Neighbors</div></div>
+  <div class="badge-status" style="background:rgba(0,200,150,.1);color:var(--c-accent);padding:8px 16px;border-radius:20px;font-weight:600;">🤖 scikit-learn Powered</div>
+</div>
+
+<!-- Search Box -->
+<div class="c-card mb-4" style="background:linear-gradient(135deg,#0b3d6b,#1160a8);border:none;">
+  <div class="c-card-body" style="padding:30px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:40px;margin-bottom:10px;">🔬</div>
+      <h5 style="color:#fff;font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">Find Similar Medicines</h5>
+      <p style="color:rgba(255,255,255,.65);font-size:13.5px;">Search by medicine name, generic name, symptom, or condition</p>
+    </div>
+    <div class="d-flex gap-2 justify-content-center" style="max-width:600px;margin:0 auto;">
+      <input type="text" id="rec-query" class="form-ph" placeholder="e.g. Paracetamol, fever, antibiotic, Crocin..." style="font-size:15px;padding:13px 18px;border-radius:12px;"/>
+      <button class="btn-ph btn-ph-accent" id="btn-recommend" style="padding:13px 24px;font-size:15px;border-radius:12px;flex-shrink:0;">
+        <i class="bi bi-search"></i> Recommend
+      </button>
+    </div>
+    <div class="d-flex gap-2 flex-wrap justify-content-center mt-3" id="quick-tags">
+      <span class="chat-quick-btn" onclick="quickSearch('fever')">🌡️ Fever</span>
+      <span class="chat-quick-btn" onclick="quickSearch('antibiotic')">💊 Antibiotic</span>
+      <span class="chat-quick-btn" onclick="quickSearch('pain')">🩹 Pain Relief</span>
+      <span class="chat-quick-btn" onclick="quickSearch('cold cough')">🤧 Cold & Cough</span>
+      <span class="chat-quick-btn" onclick="quickSearch('diabetes')">🩸 Diabetes</span>
+      <span class="chat-quick-btn" onclick="quickSearch('blood pressure')">❤️ Blood Pressure</span>
+      <span class="chat-quick-btn" onclick="quickSearch('acidity')">🔥 Acidity</span>
+      <span class="chat-quick-btn" onclick="quickSearch('allergy')">🌸 Allergy</span>
+    </div>
+  </div>
+</div>
+
+<!-- Results -->
+<div id="rec-loading" style="display:none;text-align:center;padding:40px;">
+  <div class="spinner-border text-primary" role="status" style="width:40px;height:40px;"></div>
+  <p class="mt-3 text-muted">Running ML recommendation engine...</p>
+</div>
+
+<div id="rec-results" class="row g-3"></div>
+
+<div id="rec-grid-wrap" class="c-card mt-4" style="display:none;">
+  <div class="c-card-header"><div class="c-card-title"><i class="bi bi-table"></i> Results in Table View</div></div>
+  <div id="rec-grid" class="ag-theme-alpine" style="height:400px;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let recGrid;
+
+function quickSearch(q){ document.getElementById('rec-query').value=q; recommend(); }
+
+document.getElementById('btn-recommend').addEventListener('click',recommend);
+document.getElementById('rec-query').addEventListener('keypress',e=>{if(e.key==='Enter')recommend();});
+
+async function recommend(){
+  const q=document.getElementById('rec-query').value.trim();
+  if(!q){showToast('Please enter a search query','warning');return;}
+
+  document.getElementById('rec-loading').style.display='block';
+  document.getElementById('rec-results').innerHTML='';
+  document.getElementById('rec-grid-wrap').style.display='none';
+
+  try{
+    const results=await apiCall(`/api/recommend/?q=${encodeURIComponent(q)}&n=12`);
+    document.getElementById('rec-loading').style.display='none';
+
+    if(results.length===0){
+      document.getElementById('rec-results').innerHTML=`
+        <div class="col-12 text-center py-5">
+          <i class="bi bi-search" style="font-size:3rem;color:var(--c-muted);"></i>
+          <p class="mt-3 text-muted">No recommendations found for "${q}". Try a different term.</p>
+        </div>`;
+      return;
+    }
+
+    document.getElementById('rec-results').innerHTML=results.map(r=>{
+      const stockColor=r.quantity>20?'var(--c-success)':r.quantity>0?'var(--c-warning)':'var(--c-danger)';
+      const stockLabel=r.quantity>20?'In Stock':r.quantity>0?'Low Stock':'Out of Stock';
+      const sim=r.similarity||0;
+      const simColor=sim>70?'var(--c-success)':sim>40?'var(--c-warning)':'var(--c-muted)';
+      return`
+        <div class="col-xl-3 col-md-4 col-sm-6">
+          <div class="c-card" style="transition:transform .2s,box-shadow .2s;cursor:pointer;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div class="c-card-body" style="padding:18px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                <span class="stock-badge ${r.quantity>20?'stock-good':r.quantity>0?'stock-low':'stock-out'}">${stockLabel}</span>
+                <span style="font-size:11px;font-weight:700;color:${simColor};background:${simColor}22;padding:2px 8px;border-radius:20px;">${sim}% match</span>
+              </div>
+              <div style="font-weight:700;font-size:14px;color:var(--c-primary);margin-bottom:4px;line-height:1.3;">${r.name}</div>
+              <div style="font-size:12px;color:var(--c-muted);margin-bottom:12px;">${r.generic_name||''} ${r.presentation?'• '+r.presentation:''}</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:18px;font-weight:700;color:var(--c-success);">₹${parseFloat(r.selling_price).toFixed(2)}</span>
+                <span style="font-size:12px;color:${stockColor}">📦 ${r.quantity} units</span>
+              </div>
+              ${r.volume?`<div style="font-size:11px;color:var(--c-muted);margin-top:6px;">Volume: ${r.volume}</div>`:''}
+              <!-- Similarity Bar -->
+              <div style="margin-top:12px;">
+                <div style="font-size:10px;color:var(--c-muted);margin-bottom:3px;">Similarity</div>
+                <div style="background:#e8edf3;border-radius:4px;height:5px;">
+                  <div style="background:${simColor};height:5px;border-radius:4px;width:${sim}%;transition:width .8s ease;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Also populate AG Grid
+    document.getElementById('rec-grid-wrap').style.display='block';
+    if(!recGrid){
+      recGrid=agGrid.createGrid(document.getElementById('rec-grid'),{
+        columnDefs:[
+          {headerName:'Rank',valueGetter:'node.rowIndex+1',width:65,sortable:false},
+          {headerName:'Medicine',field:'name',minWidth:200,cellRenderer:p=>`<strong style="color:var(--c-primary)">${p.value}</strong>`},
+          {headerName:'Generic',field:'generic_name',minWidth:130},
+          {headerName:'Presentation',field:'presentation',width:120},
+          {headerName:'Price',field:'selling_price',width:100,cellRenderer:p=>`<strong style="color:var(--c-success)">₹${parseFloat(p.value||0).toFixed(2)}</strong>`},
+          {headerName:'Stock',field:'quantity',width:130,cellRenderer:p=>stockBadgeRenderer(p)},
+          {headerName:'Match %',field:'similarity',width:110,cellRenderer:p=>{
+            const c=p.value>70?'var(--c-success)':p.value>40?'var(--c-warning)':'var(--c-muted)';
+            return`<span style="font-weight:700;color:${c}">${p.value}%</span>`;
+          }},
+        ],
+        rowData:results,defaultColDef:{sortable:true,resizable:true},animateRows:true,rowHeight:44,headerHeight:44,
+      });
+    }else{
+      recGrid.setGridOption('rowData',results);
+    }
+
+  }catch(e){
+    document.getElementById('rec-loading').style.display='none';
+    showToast('Recommendation failed: '+e.message,'error');
+  }
+}
+</script>
+{% endblock %}

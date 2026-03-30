@@ -1,0 +1,542 @@
+{% extends 'base.html' %}
+{% block title %}Online Medicines{% endblock %}
+{% block topbar_icon %}capsule-pill{% endblock %}
+{% block topbar_title %}Buy Medicines Online{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --store-primary: #ff6f61;
+    --store-primary-deep: #e94d3f;
+    --store-ink: #18263a;
+    --store-muted: #5f7088;
+    --store-bg: #fffaf7;
+    --store-card: #ffffff;
+    --store-line: #eadfd6;
+    --store-safe: #1f9d6a;
+    --store-note: #fff0ea;
+  }
+
+  .store-shell {
+    display: grid;
+    gap: 18px;
+  }
+
+  .store-top-strip {
+    background: linear-gradient(110deg, #fff2eb 0%, #fffaf5 45%, #eef9ff 100%);
+    border: 1px solid #f4d6ca;
+    border-radius: 18px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    animation: riseIn .55s ease-out;
+  }
+
+  .store-search-form {
+    display: grid;
+    grid-template-columns: 185px minmax(0, 1fr) 128px;
+    gap: 10px;
+  }
+
+  .store-pill,
+  .store-search,
+  .store-search-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--store-line);
+    font-size: 13.5px;
+  }
+
+  .store-pill {
+    background: #fff;
+    color: var(--store-ink);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 12px;
+    font-weight: 600;
+  }
+
+  .store-search {
+    width: 100%;
+    padding: 0 14px;
+    color: var(--store-ink);
+    background: #fff;
+  }
+
+  .store-search:focus {
+    outline: none;
+    border-color: var(--store-primary);
+    box-shadow: 0 0 0 3px rgba(255, 111, 97, 0.16);
+  }
+
+  .store-search-btn {
+    border: none;
+    background: var(--store-primary);
+    color: #fff;
+    font-weight: 700;
+    transition: transform .18s ease, background .18s ease;
+  }
+
+  .store-search-btn:hover {
+    background: var(--store-primary-deep);
+    transform: translateY(-1px);
+  }
+
+  .store-mini-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .store-mini-link {
+    text-decoration: none;
+    color: #23415f;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 8px 11px;
+    border-radius: 999px;
+    border: 1px solid #d7e5f0;
+    background: #f7fbff;
+  }
+
+  .store-hero {
+    background: linear-gradient(125deg, #ffece4 0%, #fff8f4 42%, #ecf8ff 100%);
+    border: 1px solid #f3ddd2;
+    border-radius: 20px;
+    padding: 22px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 285px;
+    gap: 18px;
+    align-items: stretch;
+    animation: riseIn .55s ease-out;
+  }
+
+  .store-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    color: #b74b3f;
+    background: #fff;
+    border: 1px solid #f2cfc5;
+    border-radius: 999px;
+    padding: 7px 11px;
+    margin-bottom: 11px;
+  }
+
+  .store-hero h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2rem;
+    margin: 0 0 10px;
+    color: var(--store-ink);
+  }
+
+  .store-hero p {
+    color: var(--store-muted);
+    margin: 0;
+    max-width: 740px;
+  }
+
+  .store-cta-row {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .store-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 11px;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    transition: transform .18s ease;
+  }
+
+  .store-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .store-btn-primary {
+    background: var(--store-primary);
+    color: #fff;
+  }
+
+  .store-btn-soft {
+    background: #fff;
+    color: #2f5a83;
+    border: 1px solid #d9e8f5;
+  }
+
+  .store-hero-card {
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #f2d8cd;
+    padding: 16px;
+    display: grid;
+    gap: 11px;
+  }
+
+  .store-hero-card h3 {
+    font-size: 1rem;
+    color: #24415f;
+    margin: 0;
+  }
+
+  .store-hero-card p {
+    margin: 0;
+    color: #5a6d86;
+    font-size: .92rem;
+  }
+
+  .store-badges {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .store-badge {
+    background: #fff;
+    border: 1px solid #e6edf2;
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #27415d;
+    font-weight: 600;
+    font-size: .92rem;
+  }
+
+  .store-cats {
+    background: #fff;
+    border: 1px solid #e8edf1;
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .store-cats h2,
+  .store-products h2 {
+    font-size: 1.07rem;
+    margin: 0 0 12px;
+    color: #243b56;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .store-cat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .store-chip {
+    border: 1px solid #dce8f4;
+    background: #f5faff;
+    color: #1e4f79;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 7px 12px;
+  }
+
+  .store-products {
+    background: #fff;
+    border: 1px solid #e8edf1;
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .store-product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+    gap: 12px;
+  }
+
+  .store-product {
+    border: 1px solid #e8edf3;
+    border-radius: 14px;
+    padding: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+    display: grid;
+    gap: 8px;
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+
+  .store-product:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(25, 62, 93, .08);
+  }
+
+  .store-product-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .store-title {
+    margin: 0;
+    font-weight: 700;
+    font-size: .98rem;
+    color: #1d3650;
+    line-height: 1.3;
+  }
+
+  .store-rx {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    color: #8f5200;
+    background: #fff2c9;
+    border: 1px solid #f1d784;
+    border-radius: 999px;
+    padding: 4px 8px;
+    white-space: nowrap;
+  }
+
+  .store-sub {
+    font-size: .86rem;
+    color: #5d7089;
+  }
+
+  .store-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .store-price {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.1rem;
+    color: #182f48;
+    font-weight: 700;
+  }
+
+  .store-cut {
+    font-size: .83rem;
+    color: #8999ad;
+    text-decoration: line-through;
+  }
+
+  .store-stock-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    font-size: .84rem;
+  }
+
+  .store-stock-ok {
+    color: var(--store-safe);
+    font-weight: 700;
+  }
+
+  .store-stock-low {
+    color: #cc6400;
+    font-weight: 700;
+  }
+
+  .store-discount {
+    color: #e24c40;
+    font-weight: 700;
+    background: #fff0ee;
+    border-radius: 999px;
+    padding: 3px 7px;
+  }
+
+  .store-cart-btn {
+    margin-top: 2px;
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    background: #17395b;
+    color: #fff;
+    padding: 10px 12px;
+    font-size: .9rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background .18s ease;
+  }
+
+  .store-cart-btn:hover {
+    background: #0f2a44;
+    color: #fff;
+  }
+
+  .store-empty {
+    border: 1px dashed #d7e0e8;
+    background: #f9fbfd;
+    border-radius: 14px;
+    padding: 34px 16px;
+    text-align: center;
+    color: #66778d;
+  }
+
+  .store-foot-note {
+    background: var(--store-note);
+    border: 1px solid #f5d6ca;
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 11px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .store-foot-note p {
+    margin: 0;
+    color: #864c42;
+    font-size: .9rem;
+  }
+
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 1080px) {
+    .store-top-strip,
+    .store-hero {
+      grid-template-columns: 1fr;
+    }
+    .store-mini-links {
+      justify-content: flex-start;
+    }
+    .store-badges {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 760px) {
+    .store-search-form {
+      grid-template-columns: 1fr;
+    }
+    .store-pill,
+    .store-search,
+    .store-search-btn {
+      width: 100%;
+    }
+    .store-hero h1 {
+      font-size: 1.58rem;
+    }
+    .store-badges {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="store-shell">
+  <section class="store-top-strip">
+    <form method="get" class="store-search-form">
+      <div class="store-pill"><i class="bi bi-geo-alt-fill"></i> Deliver to Kolkata 700001</div>
+      <input type="text" class="store-search" name="q" value="{{ query }}" placeholder="Search for medicines, wellness products, and healthcare items">
+      <button class="store-search-btn" type="submit"><i class="bi bi-search"></i> Search</button>
+    </form>
+    <div class="store-mini-links">
+      <a class="store-mini-link" href="{% url 'online_cart' %}"><i class="bi bi-cart3"></i> Cart</a>
+      <a class="store-mini-link" href="{% url 'online_checkout' %}"><i class="bi bi-credit-card"></i> Checkout</a>
+      <a class="store-mini-link" href="{% url 'online_orders' %}"><i class="bi bi-truck"></i> Orders</a>
+    </div>
+  </section>
+
+  <section class="store-hero">
+    <div>
+      <div class="store-kicker"><i class="bi bi-patch-check-fill"></i> India-style trusted medicine delivery</div>
+      <h1>Order Medicines Online with Fast, Verified Pharmacy Fulfilment</h1>
+      <p>
+        Authentic medicines, transparent pricing, and doorstep delivery. Search by brand or generic name,
+        upload prescription for Rx products, and place your order in minutes.
+      </p>
+      <div class="store-cta-row">
+        <a href="{% url 'online_cart' %}" class="store-btn store-btn-primary"><i class="bi bi-bag-check"></i> Go to Cart</a>
+        <a href="{% url 'online_checkout' %}" class="store-btn store-btn-soft"><i class="bi bi-cloud-upload"></i> Upload Rx & Checkout</a>
+      </div>
+    </div>
+    <aside class="store-hero-card">
+      <h3>Need help with prescription medicines?</h3>
+      <p>Upload your prescription at checkout and our pharmacist team will review before order approval.</p>
+      <a href="{% url 'online_checkout' %}" class="store-btn store-btn-primary" style="justify-content:center;"><i class="bi bi-file-earmark-medical"></i> Start Prescription Order</a>
+      <a href="{% url 'online_orders' %}" class="store-btn store-btn-soft" style="justify-content:center;"><i class="bi bi-clock-history"></i> Track Existing Orders</a>
+    </aside>
+  </section>
+
+  <section class="store-badges">
+    <div class="store-badge"><i class="bi bi-shield-check"></i> 100% Genuine Products</div>
+    <div class="store-badge"><i class="bi bi-truck"></i> Timely Doorstep Delivery</div>
+    <div class="store-badge"><i class="bi bi-cash-stack"></i> Savings on Everyday Meds</div>
+    <div class="store-badge"><i class="bi bi-headset"></i> Pharmacist Support</div>
+  </section>
+
+  <section class="store-cats">
+    <h2><i class="bi bi-grid-3x3-gap"></i> Shop by Category</h2>
+    <div class="store-cat-row">
+      <span class="store-chip">Diabetes Care</span>
+      <span class="store-chip">Heart Health</span>
+      <span class="store-chip">Pain Relief</span>
+      <span class="store-chip">Vitamins & Immunity</span>
+      <span class="store-chip">Stomach Care</span>
+      <span class="store-chip">Skin & Hair</span>
+      <span class="store-chip">Women Wellness</span>
+      <span class="store-chip">Baby Care</span>
+      <span class="store-chip">Ayurveda</span>
+    </div>
+  </section>
+
+  <section class="store-products">
+    <h2><i class="bi bi-capsule-pill"></i> Available Medicines {% if query %}for "{{ query }}"{% endif %}</h2>
+    <div class="store-product-grid">
+      {% for medicine in medicines %}
+        <article class="store-product">
+          <div class="store-product-head">
+            <h3 class="store-title">{{ medicine.name }}</h3>
+            {% if medicine.prescription_required %}
+              <span class="store-rx">Rx Required</span>
+            {% endif %}
+          </div>
+          <div class="store-sub">{{ medicine.generic_name.name|default:"Generic not listed" }} | {{ medicine.volume|default:"Standard Pack" }}</div>
+          <div class="store-price-row">
+            <div class="store-price">Rs.{{ medicine.selling_price }}</div>
+            <div class="store-cut">Rs.{% widthratio medicine.selling_price 100 115 %}</div>
+          </div>
+          <div class="store-stock-row">
+            {% if medicine.quantity <= 10 %}
+              <span class="store-stock-low"><i class="bi bi-exclamation-circle"></i> Only {{ medicine.quantity }} left</span>
+            {% else %}
+              <span class="store-stock-ok"><i class="bi bi-check-circle"></i> In stock</span>
+            {% endif %}
+            <span class="store-discount">Up to 15% Off</span>
+          </div>
+          <a href="{% url 'online_add_to_cart' medicine.id %}" class="store-cart-btn">
+            <i class="bi bi-cart-plus"></i> Add to Cart
+          </a>
+        </article>
+      {% empty %}
+        <div class="store-empty">
+          <h5 style="margin-bottom:8px;color:#253f5b;">No medicines found</h5>
+          <p style="margin:0;">Try searching by brand name, generic name, or remove the search keyword.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="store-foot-note">
+    <p><i class="bi bi-info-circle"></i> Prescription medicines will be shipped only after pharmacist verification.</p>
+    <a class="store-btn store-btn-soft" href="{% url 'online_purchase' %}"><i class="bi bi-arrow-left"></i> Back to Online Purchase Dashboard</a>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block topbar_icon %}speedometer2{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-speedometer2"></i> Dashboard</h4>
+    <div class="breadcrumb-ph">Welcome back, {{ request.user.username }} — {{ today|date:"d M Y" }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'sales' %}" class="btn-ph btn-ph-accent"><i class="bi bi-plus-lg"></i> New Sale</a>
+    <a href="{% url 'inventory' %}" class="btn-ph btn-ph-primary"><i class="bi bi-box-arrow-in-down"></i> Add Stock</a>
+    <a href="{% url 'online_orders' %}" class="btn-ph btn-ph-outline"><i class="bi bi-bag-check"></i> Online: {{ total_online_orders }}</a>
+    <span class="btn-ph btn-ph-outline"><i class="bi bi-hourglass-split"></i> Pending: {{ pending_online_orders }}</span>
+    <span class="btn-ph btn-ph-outline"><i class="bi bi-currency-rupee"></i> Online Revenue: ₹{{ online_revenue|floatformat:0 }}</span>
+  </div>
+</div>
+
+<!-- ─── STAT CARDS ROW 1 ─── -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="total_medicines" style="--bar-color:var(--c-accent);--icon-bg:rgba(0,200,150,.1);--icon-color:var(--c-accent);cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-capsule"></i></div>
+      <div class="stat-value">{{ total_medicines }}</div>
+      <div class="stat-label">Total Medicines</div>
+      <span class="stat-badge badge-info"><i class="bi bi-arrow-up-right"></i> {{ total_generics }} generics</span>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="today_sales" style="--bar-color:var(--c-success);--icon-bg:rgba(16,185,129,.1);--icon-color:var(--c-success);cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+      <div class="stat-value">₹{{ today_sales|floatformat:0 }}</div>
+      <div class="stat-label">Today's Revenue</div>
+      <span class="stat-badge badge-up"><i class="bi bi-calendar-check"></i> ₹{{ month_sales|floatformat:0 }} this month</span>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="out_of_stock" style="--bar-color:var(--c-danger);--icon-bg:rgba(229,57,53,.1);--icon-color:var(--c-danger);cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-value">{{ out_of_stock }}</div>
+      <div class="stat-label">Out of Stock</div>
+      <span class="stat-badge badge-warn"><i class="bi bi-arrow-down-right"></i> {{ low_stock }} low stock</span>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="expiring_soon" style="--bar-color:var(--c-warning);--icon-bg:rgba(245,158,11,.1);--icon-color:var(--c-warning);cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+      <div class="stat-value">{{ expiring_soon }}</div>
+      <div class="stat-label">Expiring in 30 Days</div>
+      <span class="stat-badge badge-down"><i class="bi bi-x-circle"></i> {{ expired }} already expired</span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── STAT CARDS ROW 2 ─── -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="suppliers" style="--bar-color:var(--c-info);--icon-bg:rgba(59,130,246,.1);--icon-color:var(--c-info);cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-truck"></i></div>
+      <div class="stat-value">{{ total_suppliers }}</div>
+      <div class="stat-label">Active Suppliers</div>
+      <span class="stat-badge badge-info"><i class="bi bi-building"></i> registered</span>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="generics" style="--bar-color:#8b5cf6;--icon-bg:rgba(139,92,246,.1);--icon-color:#8b5cf6;cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-tag"></i></div>
+      <div class="stat-value">{{ total_generics }}</div>
+      <div class="stat-label">Generic Names</div>
+      <span class="stat-badge badge-info"><i class="bi bi-collection"></i> categorized</span>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card dashboard-detail-trigger" data-detail-key="total_sales" style="--bar-color:#06b6d4;--icon-bg:rgba(6,182,212,.1);--icon-color:#06b6d4;cursor:pointer;">
+      <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <div class="stat-value">₹{{ total_sales|floatformat:0 }}</div>
+      <div class="stat-label">Total All-Time Sales</div>
+      <span class="stat-badge badge-up"><i class="bi bi-arrow-up"></i> lifetime revenue</span>
+    </div>
+  </div>
+  <div class="col-xl-3 col-md-6">
+    <div class="stat-card" style="--bar-color:var(--c-accent2);--icon-bg:rgba(255,107,53,.1);--icon-color:var(--c-accent2)">
+      <div class="stat-icon"><i class="bi bi-robot"></i></div>
+      <div class="stat-value">ML</div>
+      <div class="stat-label">AI Assistant Active</div>
+      <span class="stat-badge badge-up"><i class="bi bi-check-circle"></i> recommendations on</span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CHARTS + ALERTS ROW ─── -->
+<div class="row g-3 mb-4">
+  <!-- Sales Line Chart -->
+  <div class="col-xl-8">
+    <div class="c-card">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-graph-up"></i> Sales Revenue — Last 14 Days</div>
+        <a href="{% url 'reports' %}" class="btn-ph btn-ph-outline btn-sm-ph">Full Report</a>
+      </div>
+      <div class="c-card-body">
+        <canvas id="salesChart" height="100"></canvas>
+      </div>
+    </div>
+  </div>
+  <!-- Stock Donut Chart -->
+  <div class="col-xl-4">
+    <div class="c-card h-100">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-pie-chart"></i> Stock Distribution</div>
+      </div>
+      <div class="c-card-body d-flex flex-column align-items-center">
+        <canvas id="stockChart" width="200" height="200"></canvas>
+        <div class="mt-3 w-100" id="stock-legend"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TOP MEDICINES + ALERTS ─── -->
+<div class="row g-3 mb-4">
+  <!-- Top Selling -->
+  <div class="col-xl-5">
+    <div class="c-card">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-trophy"></i> Top Selling Medicines</div>
+        <button type="button" class="btn-ph btn-ph-outline btn-sm-ph dashboard-detail-trigger" data-detail-key="top_medicines">Show Detail</button>
+      </div>
+      <div class="c-card-body p-0">
+        <canvas id="topMedChart" style="padding:16px;" height="180"></canvas>
+      </div>
+    </div>
+  </div>
+  <!-- Alerts -->
+  <div class="col-xl-7">
+    <div class="c-card">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-bell-fill"></i> Stock & Expiry Alerts</div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn-ph btn-ph-outline btn-sm-ph dashboard-detail-trigger" data-detail-key="alerts">Show Detail</button>
+          <a href="{% url 'inventory' %}" class="btn-ph btn-ph-outline btn-sm-ph">Manage Inventory</a>
+        </div>
+      </div>
+      <div class="c-card-body" style="max-height:280px;overflow-y:auto;">
+        {% if alerts %}
+          {% for m in alerts %}
+          <div class="alert-item">
+            <div class="alert-icon-box {% if m.quantity == 0 %}bg-danger{% elif m.quantity < 20 %}bg-warning{% else %}bg-info{% endif %} bg-opacity-10">
+              <i class="bi bi-{% if m.quantity == 0 %}x-circle-fill text-danger{% elif m.quantity < 20 %}exclamation-triangle-fill text-warning{% else %}clock-history text-info{% endif %}"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="alert-med-name">{{ m.name }}</div>
+              <div class="alert-meta">
+                Stock: {{ m.quantity }} units
+                {% if m.expire_date %} | Expires: {{ m.expire_date|date:"d M Y" }}{% endif %}
+              </div>
+            </div>
+            {% if m.quantity == 0 %}
+              <span class="stock-badge stock-out">Out of Stock</span>
+            {% elif m.quantity < 20 %}
+              <span class="stock-badge stock-low">Low Stock</span>
+            {% else %}
+              <span class="stock-badge" style="background:rgba(59,130,246,.1);color:var(--c-info)">Exp. Soon</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-check-circle-fill text-success" style="font-size:2rem;"></i>
+            <p class="mt-2 mb-0">All medicines are healthy!</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── RECENT SALES TABLE ─── -->
+<div class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-receipt"></i> Recent Sales</div>
+    <a href="{% url 'sales_list' %}" class="btn-ph btn-ph-outline btn-sm-ph">View All Sales</a>
+  </div>
+  <div class="c-card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:13px;">
+        <thead style="background:#f7f9fc;">
+          <tr>
+            <th class="px-3 py-2 text-muted fw-600" style="font-size:11.5px;font-weight:700;">INVOICE</th>
+            <th class="py-2 text-muted" style="font-size:11.5px;font-weight:700;">CUSTOMER</th>
+            <th class="py-2 text-muted" style="font-size:11.5px;font-weight:700;">ITEMS</th>
+            <th class="py-2 text-muted" style="font-size:11.5px;font-weight:700;">TOTAL</th>
+            <th class="py-2 text-muted" style="font-size:11.5px;font-weight:700;">DATE</th>
+            <th class="py-2 text-muted" style="font-size:11.5px;font-weight:700;">BY</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in recent_sales %}
+          <tr>
+            <td class="px-3 py-2"><code style="font-size:12px;color:var(--c-primary);">{{ sale.invoice_number }}</code></td>
+            <td class="py-2">{{ sale.customer_name|default:"Walk-in" }}</td>
+            <td class="py-2">{{ sale.items.count }} item{{ sale.items.count|pluralize }}</td>
+            <td class="py-2 fw-bold">₹{{ sale.sub_total }}</td>
+            <td class="py-2 text-muted">{{ sale.sale_date|date:"d M Y, H:i" }}</td>
+            <td class="py-2 text-muted">{{ sale.created_by.username|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">No sales recorded yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade modal-ph" id="dashboardDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="dashboardDetailTitle">Detail</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="dashboardDetailBody"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chartLabels = {{ chart_labels|safe }};
+const chartData   = {{ chart_data|safe }};
+const topMeds     = {{ top_medicines|safe }};
+const stockDist   = {{ stock_dist|safe }};
+const dashboardDetails = {{ dashboard_details|safe }};
+
+// ─── Sales Line Chart ───
+new Chart(document.getElementById('salesChart'), {
+  type: 'line',
+  data: {
+    labels: chartLabels,
+    datasets: [{
+      label: 'Revenue (₹)',
+      data: chartData,
+      borderColor: '#00c896',
+      backgroundColor: 'rgba(0,200,150,.08)',
+      borderWidth: 2.5,
+      fill: true,
+      tension: .4,
+      pointBackgroundColor: '#00c896',
+      pointRadius: 4,
+      pointHoverRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: {
+      callbacks: { label: ctx => ' ₹' + ctx.parsed.y.toLocaleString('en-IN') }
+    }},
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+      y: { grid: { color: 'rgba(0,0,0,.05)' }, ticks: {
+        font: { size: 11 },
+        callback: v => '₹' + v.toLocaleString('en-IN')
+      }}
+    }
+  }
+});
+
+// ─── Stock Donut Chart ───
+const stockColors = ['#e53935','#f59e0b','#10b981','#3b82f6'];
+const stockLabels = Object.keys(stockDist);
+const stockVals   = Object.values(stockDist);
+new Chart(document.getElementById('stockChart'), {
+  type: 'doughnut',
+  data: {
+    labels: stockLabels,
+    datasets: [{ data: stockVals, backgroundColor: stockColors, borderWidth: 3, borderColor: '#fff' }]
+  },
+  options: {
+    cutout: '68%',
+    plugins: { legend: { display: false }, tooltip: {
+      callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} medicines` }
+    }}
+  }
+});
+// Custom legend
+const legend = document.getElementById('stock-legend');
+stockLabels.forEach((l, i) => {
+  legend.innerHTML += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+    <span style="width:10px;height:10px;border-radius:50%;background:${stockColors[i]};flex-shrink:0;"></span>
+    <span style="font-size:12px;color:#6b7a90;">${l}: <strong>${stockVals[i]}</strong></span>
+  </div>`;
+});
+
+// ─── Top Medicines Bar ───
+if (topMeds.length > 0) {
+  new Chart(document.getElementById('topMedChart'), {
+    type: 'bar',
+    data: {
+      labels: topMeds.map(m => m.medicine__name || m['medicine__name']),
+      datasets: [{
+        label: 'Units Sold',
+        data: topMeds.map(m => m.total_sold),
+        backgroundColor: ['#0b3d6b','#1160a8','#00c896','#f59e0b','#e53935'],
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,.05)' }, ticks: { font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+const detailModal = new bootstrap.Modal(document.getElementById('dashboardDetailModal'));
+const detailTitle = document.getElementById('dashboardDetailTitle');
+const detailBody = document.getElementById('dashboardDetailBody');
+
+function formatDetailValue(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+}
+
+function renderDetailTable(items) {
+  if (!items || !items.length) {
+    return '<div class="text-center py-4 text-muted">No details available.</div>';
+  }
+
+  const columns = [...new Set(items.flatMap(item => Object.keys(item)))];
+  const headerHtml = columns.map(col => `
+    <th class="px-3 py-2 text-muted" style="font-size:11.5px;font-weight:700;">
+      ${col.replaceAll('_', ' ').toUpperCase()}
+    </th>
+  `).join('');
+
+  const rowHtml = items.map(item => `
+    <tr>
+      ${columns.map(col => `<td class="px-3 py-2">${formatDetailValue(item[col])}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  return `
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:13px;">
+        <thead style="background:#f7f9fc;"><tr>${headerHtml}</tr></thead>
+        <tbody>${rowHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+document.querySelectorAll('.dashboard-detail-trigger').forEach(trigger => {
+  trigger.addEventListener('click', () => {
+    const detail = dashboardDetails[trigger.dataset.detailKey];
+    if (!detail) return;
+    detailTitle.textContent = detail.title || 'Detail';
+    detailBody.innerHTML = renderDetailTable(detail.items || []);
+    detailModal.show();
+  });
+});
+</script>
+{% endblock %}

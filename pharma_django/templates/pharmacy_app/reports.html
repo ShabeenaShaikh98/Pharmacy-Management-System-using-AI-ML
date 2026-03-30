@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block topbar_icon %}bar-chart-line{% endblock %}
+{% block topbar_title %}Reports & Analytics{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h4><i class="bi bi-bar-chart-line"></i> Reports & Analytics</h4><div class="breadcrumb-ph">Sales performance, medicine analytics, stock reports</div></div>
+  <div class="d-flex gap-2">
+    <select id="rpt-days" class="form-ph" style="width:160px;">
+      <option value="7">Last 7 Days</option>
+      <option value="30" selected>Last 30 Days</option>
+      <option value="90">Last 90 Days</option>
+    </select>
+    <button class="btn-ph btn-ph-primary" onclick="loadReports()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4" id="rpt-stats"></div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-8">
+    <div class="c-card">
+      <div class="c-card-header"><div class="c-card-title"><i class="bi bi-graph-up"></i> Daily Revenue Trend</div></div>
+      <div class="c-card-body"><canvas id="rpt-sales-chart" height="120"></canvas></div>
+    </div>
+  </div>
+  <div class="col-xl-4">
+    <div class="c-card h-100">
+      <div class="c-card-header"><div class="c-card-title"><i class="bi bi-pie-chart"></i> Stock Health</div></div>
+      <div class="c-card-body d-flex flex-column align-items-center">
+        <canvas id="rpt-stock-pie" width="200" height="200"></canvas>
+        <div id="rpt-pie-legend" class="mt-3 w-100"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Medicines Performance AG Grid -->
+<div class="c-card mb-4">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-trophy"></i> Medicine Performance</div>
+    <button class="btn-ph btn-ph-outline btn-sm-ph" id="btn-export-perf"><i class="bi bi-download"></i> Export</button>
+  </div>
+  <div id="perf-grid" class="ag-theme-alpine" style="height:420px;"></div>
+</div>
+
+<!-- Sales Summary AG Grid -->
+<div class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-calendar3"></i> Daily Sales Summary</div>
+    <button class="btn-ph btn-ph-outline btn-sm-ph" id="btn-export-sales"><i class="bi bi-download"></i> Export</button>
+  </div>
+  <div id="sales-summary-grid" class="ag-theme-alpine" style="height:380px;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let perfGrid, summaryGrid, salesChart, stockPie;
+
+perfGrid=agGrid.createGrid(document.getElementById('perf-grid'),{
+  columnDefs:[
+    {headerName:'#',valueGetter:'node.rowIndex+1',width:55,sortable:false},
+    {headerName:'Medicine',field:'medicine__name',minWidth:200,cellRenderer:p=>`<strong style="color:var(--c-primary)">${p.value}</strong>`},
+    {headerName:'Units Sold',field:'total_sold',width:120,cellRenderer:p=>`<strong>${p.value||0}</strong>`},
+    {headerName:'Revenue',field:'revenue',width:130,cellRenderer:p=>`<strong style="color:var(--c-success)">₹${parseFloat(p.value||0).toFixed(2)}</strong>`},
+    {headerName:'Transactions',field:'transactions',width:120},
+    {headerName:'Revenue Bar',field:'revenue',width:200,cellRenderer:p=>{
+      const pct=Math.min(100,parseFloat(p.value||0)/100);
+      return`<div style="background:#e8edf3;border-radius:4px;height:12px;margin-top:14px;">
+        <div style="background:var(--c-accent);height:12px;border-radius:4px;width:${pct}%;"></div></div>`;
+    }},
+  ],
+  rowData:[],defaultColDef:{sortable:true,resizable:true},animateRows:true,pagination:true,paginationPageSize:20,rowHeight:44,headerHeight:44,
+});
+
+summaryGrid=agGrid.createGrid(document.getElementById('sales-summary-grid'),{
+  columnDefs:[
+    {headerName:'Date',field:'date',width:130,cellRenderer:p=>new Date(p.value).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})},
+    {headerName:'Transactions',field:'count',width:130},
+    {headerName:'Revenue',field:'revenue',width:140,cellRenderer:p=>`<strong style="color:var(--c-success)">₹${parseFloat(p.value||0).toFixed(2)}</strong>`},
+    {headerName:'Trend',field:'revenue',width:200,cellRenderer:p=>{
+      const pct=Math.min(100,parseFloat(p.value||0)/50);
+      return`<div style="background:#e8edf3;border-radius:4px;height:12px;margin-top:14px;">
+        <div style="background:var(--c-primary);height:12px;border-radius:4px;width:${pct}%;"></div></div>`;
+    }},
+  ],
+  rowData:[],defaultColDef:{sortable:true,resizable:true},animateRows:true,pagination:true,paginationPageSize:15,rowHeight:44,headerHeight:44,
+});
+
+document.getElementById('btn-export-perf').addEventListener('click',()=>perfGrid.exportDataAsCsv({fileName:'medicine_performance.csv'}));
+document.getElementById('btn-export-sales').addEventListener('click',()=>summaryGrid.exportDataAsCsv({fileName:'sales_summary.csv'}));
+
+async function loadReports(){
+  const days=document.getElementById('rpt-days').value;
+  try{
+    // Stats
+    const stats=await apiCall('/api/stats/');
+    document.getElementById('rpt-stats').innerHTML=`
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-success)"><div class="stat-icon" style="background:rgba(16,185,129,.1);color:var(--c-success)"><i class="bi bi-currency-rupee"></i></div><div class="stat-value">₹${parseFloat(stats.today_sales).toFixed(0)}</div><div class="stat-label">Today's Sales</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-accent)"><div class="stat-icon" style="background:rgba(0,200,150,.1);color:var(--c-accent)"><i class="bi bi-calendar-month"></i></div><div class="stat-value">₹${parseFloat(stats.month_sales).toFixed(0)}</div><div class="stat-label">This Month</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-danger)"><div class="stat-icon" style="background:rgba(229,57,53,.1);color:var(--c-danger)"><i class="bi bi-exclamation-triangle"></i></div><div class="stat-value">${stats.out_of_stock}</div><div class="stat-label">Out of Stock</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-warning)"><div class="stat-icon" style="background:rgba(245,158,11,.1);color:var(--c-warning)"><i class="bi bi-clock-history"></i></div><div class="stat-value">${stats.expiring_soon}</div><div class="stat-label">Expiring Soon</div></div></div>`;
+
+    // Sales trend
+    const salesData=await apiCall(`/api/reports/sales-summary/?days=${days}`);
+    const labels=salesData.map(d=>new Date(d.date).toLocaleDateString('en-IN',{month:'short',day:'2-digit'}));
+    const revenues=salesData.map(d=>parseFloat(d.revenue||0));
+    if(salesChart){salesChart.destroy();}
+    salesChart=new Chart(document.getElementById('rpt-sales-chart'),{
+      type:'line',
+      data:{labels,datasets:[{
+        label:'Revenue (₹)',data:revenues,
+        borderColor:'#0b3d6b',backgroundColor:'rgba(11,61,107,.08)',
+        borderWidth:2.5,fill:true,tension:.4,
+        pointBackgroundColor:'#0b3d6b',pointRadius:4,
+      }]},
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ₹'+ctx.parsed.y.toLocaleString('en-IN')}}},
+        scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{callback:v=>'₹'+v.toLocaleString('en-IN')}}}},
+    });
+
+    // Medicine performance
+    const perfData=await apiCall('/api/reports/medicine-performance/');
+    perfGrid.setGridOption('rowData',perfData);
+    summaryGrid.setGridOption('rowData',salesData);
+
+    // Stock pie
+    const alerts=await apiCall('/api/reports/stock-alerts/');
+    const out=alerts.filter(m=>m.quantity===0).length;
+    const low=alerts.filter(m=>m.quantity>0&&m.quantity<20).length;
+    const expd=alerts.filter(m=>m.is_expired).length;
+    const ok=Math.max(0,(await apiCall('/api/medicines/')).length-out-low);
+    const pieData=[out,low,expd,ok];
+    const pieLabels=['Out of Stock','Low Stock','Expired','Healthy'];
+    const pieColors=['#e53935','#f59e0b','#8b5cf6','#10b981'];
+    if(stockPie){stockPie.destroy();}
+    stockPie=new Chart(document.getElementById('rpt-stock-pie'),{
+      type:'doughnut',
+      data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderWidth:3,borderColor:'#fff'}]},
+      options:{cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed}`}}}},
+    });
+    const legend=document.getElementById('rpt-pie-legend');
+    legend.innerHTML=pieLabels.map((l,i)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${pieColors[i]};flex-shrink:0;"></span>
+      <span style="font-size:12px;color:#6b7a90;">${l}: <strong>${pieData[i]}</strong></span></div>`).join('');
+
+  }catch(e){showToast('Load failed: '+e.message,'error');}
+}
+
+document.getElementById('rpt-days').addEventListener('change',loadReports);
+loadReports();
+</script>
+{% endblock %}

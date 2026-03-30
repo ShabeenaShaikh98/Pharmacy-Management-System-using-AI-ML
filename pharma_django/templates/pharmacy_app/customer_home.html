@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Customer Home{% endblock %}
+{% block topbar_icon %}person-circle{% endblock %}
+{% block topbar_title %}Customer Home{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-person-circle"></i> Welcome, {{ request.user.username }}</h4>
+    <div class="breadcrumb-ph">Browse medicines, manage cart, checkout, and track your orders</div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="c-card p-3 h-100">
+      <div class="c-card-title mb-2"><i class="bi bi-capsule-pill"></i> Medicines</div>
+      <div class="text-muted small mb-3">Search and add available medicines to cart.</div>
+      <a href="{% url 'online_medicines' %}" class="btn-ph btn-ph-primary"><i class="bi bi-search"></i> Browse Medicines</a>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="c-card p-3 h-100">
+      <div class="c-card-title mb-2"><i class="bi bi-cart3"></i> Cart & Checkout</div>
+      <div class="text-muted small mb-3">Review cart items and place your order.</div>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'online_cart' %}" class="btn-ph btn-ph-outline"><i class="bi bi-cart3"></i> Open Cart</a>
+        <a href="{% url 'online_checkout' %}" class="btn-ph btn-ph-accent"><i class="bi bi-credit-card"></i> Checkout</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="c-card p-3 h-100">
+      <div class="c-card-title mb-2"><i class="bi bi-truck"></i> Orders</div>
+      <div class="text-muted small mb-3">Track status, view details, and download invoices.</div>
+      <a href="{% url 'online_orders' %}" class="btn-ph btn-ph-outline"><i class="bi bi-list-check"></i> My Orders</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

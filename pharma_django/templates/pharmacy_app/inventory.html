@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Inventory{% endblock %}
+{% block topbar_icon %}boxes{% endblock %}
+{% block topbar_title %}Inventory & Purchase{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h4><i class="bi bi-boxes"></i> Inventory & Purchase</h4><div class="breadcrumb-ph">Stock levels, purchases, expiry tracking</div></div>
+  <div class="d-flex gap-2">
+    <button class="btn-ph btn-ph-outline" onclick="invGrid.exportDataAsCsv({fileName:'inventory.csv'})"><i class="bi bi-download"></i> Export</button>
+    <button class="btn-ph btn-ph-accent" id="btn-add-purchase"><i class="bi bi-box-arrow-in-down"></i> Add Purchase</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4" id="inv-stats"></div>
+
+<ul class="nav mb-3" style="gap:8px;">
+  <li><button class="btn-ph btn-ph-primary active-tab" id="t-stock" onclick="switchTab('stock')"><i class="bi bi-boxes"></i> Stock Overview</button></li>
+  <li><button class="btn-ph btn-ph-outline" id="t-purchase" onclick="switchTab('purchase')"><i class="bi bi-receipt"></i> Purchase Records</button></li>
+</ul>
+
+<div id="tab-stock" class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-table"></i> Current Stock</div>
+    <input type="text" id="inv-search" class="form-ph" style="width:220px;" placeholder="Search..." oninput="invGrid.setGridOption('quickFilterText',this.value)"/>
+  </div>
+  <div id="inventory-grid" class="ag-theme-alpine" style="height:500px;"></div>
+</div>
+
+<div id="tab-purchase" class="c-card" style="display:none;">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-receipt"></i> Purchase History</div>
+  </div>
+  <div id="purchase-grid" class="ag-theme-alpine" style="height:500px;"></div>
+</div>
+
+<!-- Purchase Modal -->
+<div class="modal fade modal-ph" id="purchaseModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Add Purchase / Restock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label-ph">Medicine *</label><select id="pur-med" class="form-ph"><option value="">Select Medicine...</option></select></div>
+          <div class="col-md-6"><label class="form-label-ph">Supplier</label>
+            <select id="pur-sup" class="form-ph"><option value="">Select Supplier</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.company_name }}</option>{% endfor %}</select></div>
+          <div class="col-md-4"><label class="form-label-ph">Quantity *</label><input type="number" id="pur-qty" class="form-ph" value="1" min="1"/></div>
+          <div class="col-md-4"><label class="form-label-ph">Unit Price (₹)</label><input type="number" id="pur-price" class="form-ph" value="0" step="0.01" min="0"/></div>
+          <div class="col-md-4"><label class="form-label-ph">Amount Paid (₹)</label><input type="number" id="pur-paid" class="form-ph" value="0" step="0.01" min="0"/></div>
+          <div class="col-md-4"><label class="form-label-ph">Status</label>
+            <select id="pur-status" class="form-ph"><option value="received">Received</option><option value="pending">Pending</option><option value="partial">Partial</option></select></div>
+          <div class="col-md-8"><label class="form-label-ph">Notes</label><input type="text" id="pur-notes" class="form-ph" placeholder="Optional notes"/></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ph btn-ph-accent" id="btn-save-pur"><i class="bi bi-check-lg"></i> Save Purchase</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let invGrid, purGrid;
+const purModal=new bootstrap.Modal(document.getElementById('purchaseModal'));
+
+function switchTab(tab){
+  document.getElementById('tab-stock').style.display=tab==='stock'?'':'none';
+  document.getElementById('tab-purchase').style.display=tab==='purchase'?'':'none';
+  document.getElementById('t-stock').className='btn-ph '+(tab==='stock'?'btn-ph-primary':'btn-ph-outline');
+  document.getElementById('t-purchase').className='btn-ph '+(tab==='purchase'?'btn-ph-primary':'btn-ph-outline');
+}
+
+// Init Inventory Grid
+invGrid=agGrid.createGrid(document.getElementById('inventory-grid'),{
+  columnDefs:[
+    {headerName:'#',valueGetter:'node.rowIndex+1',width:55,sortable:false},
+    {headerName:'Medicine',field:'name',minWidth:180,cellRenderer:p=>`<strong style="color:var(--c-primary)">${p.value}</strong>`},
+    {headerName:'Generic',field:'generic_name_display',minWidth:120},
+    {headerName:'Form',field:'presentation_display',width:110},
+    {headerName:'Volume',field:'volume',width:100},
+    {headerName:'Stock',field:'quantity',width:130,cellRenderer:p=>stockBadgeRenderer(p)},
+    {headerName:'Buy ₹',field:'unit_price',width:100,cellRenderer:p=>`₹${parseFloat(p.value||0).toFixed(2)}`},
+    {headerName:'Sell ₹',field:'selling_price',width:100,cellRenderer:p=>`<strong style="color:var(--c-success)">₹${parseFloat(p.value||0).toFixed(2)}</strong>`},
+    {headerName:'Expire',field:'expire_date',width:125,cellRenderer:p=>{
+      if(!p.value)return'—';
+      const d=new Date(p.value),days=Math.ceil((d-new Date())/(864e5));
+      const c=days<0?'var(--c-danger)':days<30?'var(--c-warning)':'var(--c-success)';
+      return`<span style="color:${c}">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>`;
+    }},
+    {headerName:'Supplier',field:'supplier_display',minWidth:130},
+    {headerName:'Paid',field:'purchase_paid',width:100,cellRenderer:p=>`₹${parseFloat(p.value||0).toFixed(2)}`},
+    {headerName:'Due',field:'purchase_due',width:100,cellRenderer:p=>`<span style="color:${p.value>0?'var(--c-danger)':'var(--c-success)'}">₹${parseFloat(p.value||0).toFixed(2)}</span>`},
+  ],
+  rowData:[],defaultColDef:{sortable:true,resizable:true,filter:true},
+  animateRows:true,pagination:true,paginationPageSize:20,rowHeight:44,headerHeight:44,
+  onGridReady:()=>loadInventory(),
+});
+
+// Init Purchase Grid
+purGrid=agGrid.createGrid(document.getElementById('purchase-grid'),{
+  columnDefs:[
+    {headerName:'#',field:'id',width:70},
+    {headerName:'Medicine',field:'medicine_name',minWidth:180,cellRenderer:p=>`<strong>${p.value}</strong>`},
+    {headerName:'Supplier',field:'supplier_name',minWidth:140},
+    {headerName:'Qty',field:'quantity',width:80},
+    {headerName:'Unit Price',field:'unit_price',width:110,cellRenderer:p=>`₹${parseFloat(p.value||0).toFixed(2)}`},
+    {headerName:'Total',field:'total_amount',width:110,cellRenderer:p=>`<strong>₹${parseFloat(p.value||0).toFixed(2)}</strong>`},
+    {headerName:'Paid',field:'amount_paid',width:110,cellRenderer:p=>`₹${parseFloat(p.value||0).toFixed(2)}`},
+    {headerName:'Due',field:'due_amount',width:110,cellRenderer:p=>`<span style="color:${p.value>0?'var(--c-danger)':'var(--c-success)'}">₹${parseFloat(p.value||0).toFixed(2)}</span>`},
+    {headerName:'Status',field:'status',width:110,cellRenderer:p=>{
+      const colors={received:'var(--c-success)',pending:'var(--c-warning)',partial:'var(--c-info)',cancelled:'var(--c-danger)'};
+      return`<span class="badge-status" style="background:${colors[p.value]||'#eee'}22;color:${colors[p.value]||'#999'}">${p.value}</span>`;
+    }},
+    {headerName:'Date',field:'purchase_date',width:130,cellRenderer:p=>new Date(p.value).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})},
+  ],
+  rowData:[],defaultColDef:{sortable:true,resizable:true,filter:true},
+  animateRows:true,pagination:true,paginationPageSize:20,rowHeight:44,headerHeight:44,
+  onGridReady:()=>loadPurchases(),
+});
+
+async function loadInventory(){
+  try{
+    const data=await apiCall('/api/medicines/');
+    invGrid.setGridOption('rowData',data);
+    const stats=await apiCall('/api/stats/');
+    document.getElementById('inv-stats').innerHTML=`
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-accent)"><div class="stat-icon" style="background:rgba(0,200,150,.1);color:var(--c-accent)"><i class="bi bi-capsule"></i></div><div class="stat-value">${stats.total_medicines}</div><div class="stat-label">Total Medicines</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-danger)"><div class="stat-icon" style="background:rgba(229,57,53,.1);color:var(--c-danger)"><i class="bi bi-x-circle"></i></div><div class="stat-value">${stats.out_of_stock}</div><div class="stat-label">Out of Stock</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-warning)"><div class="stat-icon" style="background:rgba(245,158,11,.1);color:var(--c-warning)"><i class="bi bi-exclamation-triangle"></i></div><div class="stat-value">${stats.low_stock}</div><div class="stat-label">Low Stock</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="--bar-color:var(--c-info)"><div class="stat-icon" style="background:rgba(59,130,246,.1);color:var(--c-info)"><i class="bi bi-clock-history"></i></div><div class="stat-value">${stats.expiring_soon}</div><div class="stat-label">Expiring in 30 Days</div></div></div>`;
+  }catch(e){showToast('Load failed','error');}
+}
+
+async function loadPurchases(){
+  try{const data=await apiCall('/api/purchases/');purGrid.setGridOption('rowData',data);}
+  catch(e){showToast('Load failed','error');}
+}
+
+// Load medicine dropdown
+apiCall('/api/medicines/').then(meds=>{
+  const sel=document.getElementById('pur-med');
+  sel.innerHTML='<option value="">Select Medicine</option>'+meds.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+});
+
+document.getElementById('btn-add-purchase').addEventListener('click',()=>purModal.show());
+
+document.getElementById('btn-save-pur').addEventListener('click',async()=>{
+  const p={
+    medicine:document.getElementById('pur-med').value,
+    supplier:document.getElementById('pur-sup').value||null,
+    quantity:document.getElementById('pur-qty').value,
+    unit_price:document.getElementById('pur-price').value,
+    amount_paid:document.getElementById('pur-paid').value,
+    status:document.getElementById('pur-status').value,
+    notes:document.getElementById('pur-notes').value,
+  };
+  if(!p.medicine||!p.quantity){showToast('Medicine and quantity required','warning');return;}
+  try{
+    await apiCall('/api/purchases/','POST',p);
+    showToast('Purchase added & stock updated!');
+    purModal.hide();loadInventory();loadPurchases();
+  }catch(e){showToast('Save failed: '+e.message,'error');}
+});
+</script>
+{% endblock %}

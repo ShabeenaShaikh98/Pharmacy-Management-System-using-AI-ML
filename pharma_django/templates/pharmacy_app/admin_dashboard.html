@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Super Admin Dashboard{% endblock %}
+{% block topbar_icon %}shield-check{% endblock %}
+{% block topbar_title %}Super Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-shield-check"></i> Super Admin Dashboard</h4>
+  </div>
+  <a href="/admin/auth/user/" target="_blank" class="btn-ph btn-ph-primary">
+    <i class="bi bi-people"></i> Manage Users
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Total Users</div><div style="font-size:1.7rem;font-weight:700;">{{ total_users }}</div></div></div>
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Super Admin</div><div style="font-size:1.7rem;font-weight:700;">{{ total_super_admins }}</div></div></div>
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Admin Staff</div><div style="font-size:1.7rem;font-weight:700;">{{ total_admin_staff }}</div></div></div>
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Customers</div><div style="font-size:1.7rem;font-weight:700;">{{ total_customers }}</div></div></div>
+</div>
+
+<div class="c-card">
+  <div class="c-card-header"><div class="c-card-title"><i class="bi bi-clock-history"></i> Recent Users</div></div>
+  <div class="c-card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead style="background:#f8fafc;">
+          <tr><th class="px-3 py-2">Username</th><th class="py-2">Email</th><th class="py-2">Role</th><th class="py-2">Joined</th></tr>
+        </thead>
+        <tbody>
+          {% for user in recent_users %}
+          <tr>
+            <td class="px-3 py-2">{{ user.username }}</td>
+            <td class="py-2">{{ user.email|default:"-" }}</td>
+            <td class="py-2">
+              {% if user.is_superuser %}
+                Super Admin
+              {% elif user.is_staff %}
+                Admin Staff
+              {% else %}
+                Customer
+              {% endif %}
+            </td>
+            <td class="py-2">{{ user.date_joined|date:"d M Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center py-4 text-muted">No users found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

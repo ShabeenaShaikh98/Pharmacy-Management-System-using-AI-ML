@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Sales History{% endblock %}
+{% block topbar_icon %}list-check{% endblock %}
+{% block topbar_title %}Sales History{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-list-check"></i> Sales History</h4>
+    <div class="breadcrumb-ph">View and filter all transactions</div>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn-ph btn-ph-outline" id="btn-export"><i class="bi bi-download"></i> Export</button>
+    <a href="{% url 'sales' %}" class="btn-ph btn-ph-accent"><i class="bi bi-plus-lg"></i> New Sale</a>
+  </div>
+</div>
+<div class="c-card mb-3">
+  <div class="c-card-body" style="padding:14px 18px;">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-3"><input type="text" id="s-search" class="form-ph" placeholder="Search invoice / customer..."/></div>
+      <div class="col-md-2"><input type="date" id="s-from" class="form-ph" title="From date"/></div>
+      <div class="col-md-2"><input type="date" id="s-to" class="form-ph" title="To date"/></div>
+      <div class="col-auto">
+        <button class="btn-ph btn-ph-primary" id="btn-filter-sales"><i class="bi bi-funnel"></i> Filter</button>
+        <button class="btn-ph btn-ph-outline ms-1" id="btn-clear-sales"><i class="bi bi-x"></i> Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-table"></i> All Sales</div>
+    <span id="sales-count" style="font-size:12px;color:var(--c-accent);font-weight:600;">Loading...</span>
+  </div>
+  <div id="sales-grid" class="ag-theme-alpine" style="height:520px;"></div>
+</div>
+
+<!-- Sale Detail Modal -->
+<div class="modal fade modal-ph" id="saleDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Sale Details</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="sale-detail-body"></div>
+      <div class="modal-footer"><button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Close</button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let salesGrid, salesData=[];
+const saleModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
+
+const colDefs=[
+  {headerName:'#',valueGetter:'node.rowIndex+1',width:55,pinned:'left',sortable:false},
+  {headerName:'Invoice',field:'invoice_number',width:160,pinned:'left',
+    cellRenderer:p=>`<code style="color:var(--c-primary);font-size:12px;">${p.value}</code>`},
+  {headerName:'Customer',field:'customer_name',minWidth:140,
+    cellRenderer:p=>p.value||'<span class="text-muted">Walk-in</span>'},
+  {headerName:'Items',field:'items',width:80,
+    cellRenderer:p=>`<span class="badge-status badge-info">${(p.value||[]).length}</span>`},
+  {headerName:'Total',field:'total_amount',width:110,
+    cellRenderer:p=>`₹${parseFloat(p.value||0).toFixed(2)}`},
+  {headerName:'Discount',field:'discount',width:100,
+    cellRenderer:p=>`<span class="text-danger">-₹${parseFloat(p.value||0).toFixed(2)}</span>`},
+  {headerName:'Net Total',field:'sub_total',width:120,
+    cellRenderer:p=>`<strong style="color:var(--c-success);">₹${parseFloat(p.value||0).toFixed(2)}</strong>`},
+  {headerName:'Paid',field:'paid_amount',width:100,
+    cellRenderer:p=>`₹${parseFloat(p.value||0).toFixed(2)}`},
+  {headerName:'Date',field:'sale_date',width:140,
+    cellRenderer:p=>new Date(p.value).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})},
+  {headerName:'By',field:'created_by_name',width:110},
+  {headerName:'Action',field:'id',width:90,sortable:false,
+    cellRenderer:p=>`<button class="grid-action-btn" style="background:rgba(11,61,107,.1);color:var(--c-primary);" onclick="viewSale(${p.value})"><i class="bi bi-eye"></i></button>`},
+];
+
+salesGrid = agGrid.createGrid(document.getElementById('sales-grid'), {
+  columnDefs:colDefs,rowData:[],
+  defaultColDef:{sortable:true,resizable:true,filter:true},
+  animateRows:true,pagination:true,paginationPageSize:20,rowHeight:44,headerHeight:44,
+  onGridReady:()=>loadSales(),
+});
+
+async function loadSales(){
+  const from=document.getElementById('s-from').value;
+  const to=document.getElementById('s-to').value;
+  let url='/api/sales/?';
+  if(from) url+=`from=${from}&`;
+  if(to)   url+=`to=${to}&`;
+  try{
+    salesData=await apiCall(url);
+    salesGrid.setGridOption('rowData',salesData);
+    document.getElementById('sales-count').textContent=`${salesData.length} records`;
+  }catch(e){showToast('Load failed: '+e.message,'error');}
+}
+
+document.getElementById('s-search').addEventListener('input',e=>salesGrid.setGridOption('quickFilterText',e.target.value));
+document.getElementById('btn-filter-sales').addEventListener('click',loadSales);
+document.getElementById('btn-clear-sales').addEventListener('click',()=>{
+  ['s-from','s-to','s-search'].forEach(id=>document.getElementById(id).value='');
+  loadSales();
+});
+document.getElementById('btn-export').addEventListener('click',()=>salesGrid.exportDataAsCsv({fileName:'sales.csv'}));
+
+function viewSale(id){
+  const s=salesData.find(x=>x.id===id);
+  if(!s)return;
+  const items=(s.items||[]).map(i=>`<tr><td>${i.medicine_name}</td><td>${i.quantity}</td><td>₹${i.unit_price}</td><td>₹${i.discount}</td><td>₹${i.sub_total}</td></tr>`).join('');
+  document.getElementById('sale-detail-body').innerHTML=`
+    <p><strong>Invoice:</strong> <code>${s.invoice_number}</code> | <strong>Date:</strong> ${new Date(s.sale_date).toLocaleString('en-IN')}</p>
+    <p><strong>Customer:</strong> ${s.customer_name||'Walk-in'} | ${s.customer_email||''} | ${s.customer_phone||''}</p>
+    <table class="table table-sm mt-2" style="font-size:13px;">
+      <thead style="background:#f7f9fc;"><tr><th>Medicine</th><th>Qty</th><th>Price</th><th>Discount</th><th>Total</th></tr></thead>
+      <tbody>${items}</tbody>
+    </table>
+    <div class="text-end mt-2">
+      <div>Total: <strong>₹${s.total_amount}</strong></div>
+      <div>Discount: <strong class="text-danger">-₹${s.discount}</strong></div>
+      <div style="font-size:16px;font-weight:700;color:var(--c-primary);">Net: ₹${s.sub_total}</div>
+      <div class="text-muted">Paid: ₹${s.paid_amount} | Change: ₹${s.change_amount}</div>
+    </div>`;
+  saleModal.show();
+}
+</script>
+{% endblock %}

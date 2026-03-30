@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Suppliers{% endblock %}
+{% block topbar_icon %}truck{% endblock %}
+{% block topbar_title %}Suppliers{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h4><i class="bi bi-truck"></i> Suppliers</h4><div class="breadcrumb-ph">Manage medicine suppliers and vendors</div></div>
+  <button class="btn-ph btn-ph-accent" id="btn-add-sup"><i class="bi bi-plus-lg"></i> Add Supplier</button>
+</div>
+<div class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-table"></i> Supplier List</div>
+    <input type="text" id="sup-search" class="form-ph" style="width:220px;" placeholder="Search suppliers..."/>
+  </div>
+  <div id="supplier-grid" class="ag-theme-alpine" style="height:500px;"></div>
+</div>
+
+<div class="modal fade modal-ph" id="supModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="sup-modal-title">Add Supplier</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="sup-id"/>
+        <div class="row g-3">
+          <div class="col-12"><label class="form-label-ph">Company Name *</label><input type="text" id="sup-company" class="form-ph" placeholder="Company name"/></div>
+          <div class="col-md-6"><label class="form-label-ph">Contact Person</label><input type="text" id="sup-contact" class="form-ph" placeholder="Contact person"/></div>
+          <div class="col-md-6"><label class="form-label-ph">Phone</label><input type="text" id="sup-phone" class="form-ph" placeholder="+91 99999 99999"/></div>
+          <div class="col-md-6"><label class="form-label-ph">Email</label><input type="email" id="sup-email" class="form-ph" placeholder="email@company.com"/></div>
+          <div class="col-md-6"><label class="form-label-ph">Previous Due (₹)</label><input type="number" id="sup-due" class="form-ph" value="0" min="0"/></div>
+          <div class="col-12"><label class="form-label-ph">Address</label><textarea id="sup-address" class="form-ph" rows="2" placeholder="Full address"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ph btn-ph-accent" id="btn-save-sup"><i class="bi bi-check-lg"></i> Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let supGrid, supData=[];
+const supModal=new bootstrap.Modal(document.getElementById('supModal'));
+
+const cols=[
+  {headerName:'#',valueGetter:'node.rowIndex+1',width:55,sortable:false},
+  {headerName:'Company',field:'company_name',minWidth:180,
+    cellRenderer:p=>`<strong style="color:var(--c-primary);">${p.value}</strong>`},
+  {headerName:'Contact',field:'contact_person',minWidth:130},
+  {headerName:'Phone',field:'phone',width:130},
+  {headerName:'Email',field:'email',minWidth:180},
+  {headerName:'Total Meds',field:'total_medicines',width:110,
+    cellRenderer:p=>`<span class="badge-status badge-info">${p.value}</span>`},
+  {headerName:'Previous Due',field:'previous_due',width:130,
+    cellRenderer:p=>`<span style="color:${p.value>0?'var(--c-danger)':'var(--c-success)'}">₹${parseFloat(p.value||0).toFixed(2)}</span>`},
+  {headerName:'Actions',field:'id',width:110,sortable:false,
+    cellRenderer:p=>`
+      <div class="d-flex gap-1 h-100 align-items-center">
+        <button class="grid-action-btn" style="background:rgba(0,200,150,.1);color:var(--c-accent);" onclick="editSup(${p.value})"><i class="bi bi-pencil"></i></button>
+        <button class="grid-action-btn" style="background:rgba(229,57,53,.1);color:var(--c-danger);" onclick="deleteSup(${p.value})"><i class="bi bi-trash3"></i></button>
+      </div>`},
+];
+
+supGrid=agGrid.createGrid(document.getElementById('supplier-grid'),{
+  columnDefs:cols,rowData:[],
+  defaultColDef:{sortable:true,resizable:true,filter:true},
+  animateRows:true,pagination:true,paginationPageSize:15,rowHeight:44,headerHeight:44,
+  onGridReady:()=>loadSups(),
+});
+
+document.getElementById('sup-search').addEventListener('input',e=>supGrid.setGridOption('quickFilterText',e.target.value));
+
+async function loadSups(){
+  try{supData=await apiCall('/api/suppliers/');supGrid.setGridOption('rowData',supData);}
+  catch(e){showToast('Load failed','error');}
+}
+
+function openAdd(){
+  document.getElementById('sup-modal-title').textContent='Add Supplier';
+  ['id','company','contact','phone','email','address'].forEach(f=>document.getElementById(`sup-${f}`).value='');
+  document.getElementById('sup-due').value=0;
+  supModal.show();
+}
+
+function editSup(id){
+  const s=supData.find(x=>x.id===id);
+  if(!s)return;
+  document.getElementById('sup-modal-title').textContent='Edit Supplier';
+  document.getElementById('sup-id').value=s.id;
+  document.getElementById('sup-company').value=s.company_name||'';
+  document.getElementById('sup-contact').value=s.contact_person||'';
+  document.getElementById('sup-phone').value=s.phone||'';
+  document.getElementById('sup-email').value=s.email||'';
+  document.getElementById('sup-due').value=s.previous_due||0;
+  document.getElementById('sup-address').value=s.address||'';
+  supModal.show();
+}
+
+document.getElementById('btn-add-sup').addEventListener('click',openAdd);
+
+document.getElementById('btn-save-sup').addEventListener('click',async()=>{
+  const id=document.getElementById('sup-id').value;
+  const p={
+    company_name:document.getElementById('sup-company').value,
+    contact_person:document.getElementById('sup-contact').value,
+    phone:document.getElementById('sup-phone').value,
+    email:document.getElementById('sup-email').value,
+    previous_due:document.getElementById('sup-due').value||0,
+    address:document.getElementById('sup-address').value,
+  };
+  if(!p.company_name){showToast('Company name required','warning');return;}
+  try{
+    if(id)await apiCall(`/api/suppliers/${id}/`,'PUT',p);
+    else await apiCall('/api/suppliers/','POST',p);
+    showToast('Supplier saved');supModal.hide();loadSups();
+  }catch(e){showToast('Save failed: '+e.message,'error');}
+});
+
+async function deleteSup(id){
+  if(!confirmDelete('Delete this supplier?'))return;
+  try{await apiCall(`/api/suppliers/${id}/`,'DELETE');showToast('Supplier deleted');loadSups();}
+  catch(e){showToast('Delete failed','error');}
+}
+</script>
+{% endblock %}

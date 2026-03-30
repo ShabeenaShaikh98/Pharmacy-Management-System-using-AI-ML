@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Generic Names{% endblock %}
+{% block topbar_icon %}tag{% endblock %}
+{% block topbar_title %}Generic Names{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h4><i class="bi bi-tag"></i> Generic Names</h4><div class="breadcrumb-ph">Manage generic drug names / categories</div></div>
+  <button class="btn-ph btn-ph-accent" id="btn-add-gen"><i class="bi bi-plus-lg"></i> Add Generic</button>
+</div>
+<div class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-table"></i> Generic Names</div>
+    <input type="text" id="gen-search" class="form-ph" style="width:220px;" placeholder="Search..."/>
+  </div>
+  <div id="gen-grid" class="ag-theme-alpine" style="height:520px;"></div>
+</div>
+
+<div class="modal fade modal-ph" id="genModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="gen-modal-title">Add Generic Name</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="gen-id"/>
+        <div class="mb-3"><label class="form-label-ph">Generic Name *</label><input type="text" id="gen-name" class="form-ph" placeholder="e.g. Paracetamol"/></div>
+        <div class="mb-3"><label class="form-label-ph">Description</label><textarea id="gen-desc" class="form-ph" rows="3" placeholder="Optional description or notes"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ph btn-ph-accent" id="btn-save-gen"><i class="bi bi-check-lg"></i> Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let genGrid,genData=[];
+const genModal=new bootstrap.Modal(document.getElementById('genModal'));
+
+const cols=[
+  {headerName:'#',valueGetter:'node.rowIndex+1',width:60,sortable:false},
+  {headerName:'Generic Name',field:'name',minWidth:200,
+    cellRenderer:p=>`<strong style="color:var(--c-primary);">${p.value}</strong>`},
+  {headerName:'Description',field:'description',minWidth:280,
+    cellRenderer:p=>p.value||`<span class="text-muted">—</span>`},
+  {headerName:'Medicines',field:'medicine_count',width:110,
+    cellRenderer:p=>`<span class="badge-status badge-info">${p.value||0}</span>`},
+  {headerName:'Added',field:'created_at',width:130,
+    cellRenderer:p=>new Date(p.value).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})},
+  {headerName:'Actions',field:'id',width:100,sortable:false,
+    cellRenderer:p=>`
+      <div class="d-flex gap-1 h-100 align-items-center">
+        <button class="grid-action-btn" style="background:rgba(0,200,150,.1);color:var(--c-accent);" onclick="editGen(${p.value})"><i class="bi bi-pencil"></i></button>
+        <button class="grid-action-btn" style="background:rgba(229,57,53,.1);color:var(--c-danger);" onclick="deleteGen(${p.value})"><i class="bi bi-trash3"></i></button>
+      </div>`},
+];
+
+genGrid=agGrid.createGrid(document.getElementById('gen-grid'),{
+  columnDefs:cols,rowData:[],
+  defaultColDef:{sortable:true,resizable:true,filter:true},
+  animateRows:true,pagination:true,paginationPageSize:20,rowHeight:44,headerHeight:44,
+  onGridReady:()=>loadGens(),
+});
+
+document.getElementById('gen-search').addEventListener('input',e=>genGrid.setGridOption('quickFilterText',e.target.value));
+
+async function loadGens(){
+  try{genData=await apiCall('/api/generics/');genGrid.setGridOption('rowData',genData);}
+  catch(e){showToast('Load failed','error');}
+}
+
+document.getElementById('btn-add-gen').addEventListener('click',()=>{
+  document.getElementById('gen-modal-title').textContent='Add Generic Name';
+  document.getElementById('gen-id').value='';
+  document.getElementById('gen-name').value='';
+  document.getElementById('gen-desc').value='';
+  genModal.show();
+});
+
+function editGen(id){
+  const g=genData.find(x=>x.id===id);
+  if(!g)return;
+  document.getElementById('gen-modal-title').textContent='Edit Generic Name';
+  document.getElementById('gen-id').value=g.id;
+  document.getElementById('gen-name').value=g.name;
+  document.getElementById('gen-desc').value=g.description||'';
+  genModal.show();
+}
+
+document.getElementById('btn-save-gen').addEventListener('click',async()=>{
+  const id=document.getElementById('gen-id').value;
+  const p={name:document.getElementById('gen-name').value,description:document.getElementById('gen-desc').value};
+  if(!p.name){showToast('Name required','warning');return;}
+  try{
+    if(id)await apiCall(`/api/generics/${id}/`,'PUT',p);
+    else await apiCall('/api/generics/','POST',p);
+    showToast('Saved!');genModal.hide();loadGens();
+  }catch(e){showToast('Save failed: '+e.message,'error');}
+});
+
+async function deleteGen(id){
+  if(!confirmDelete('Delete this generic name?'))return;
+  try{await apiCall(`/api/generics/${id}/`,'DELETE');showToast('Deleted');loadGens();}
+  catch(e){showToast('Delete failed','error');}
+}
+</script>
+{% endblock %}

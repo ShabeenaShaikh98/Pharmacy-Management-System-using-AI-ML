@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% block title %}OCR Prescription{% endblock %}
+{% block topbar_icon %}file-medical{% endblock %}
+{% block topbar_title %}OCR Prescription Reader{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h4><i class="bi bi-file-medical"></i> OCR Prescription Reader</h4><div class="breadcrumb-ph">Upload prescription image or paste text — AI extracts medicines and recommends alternatives</div></div>
+  <div class="badge-status" style="background:rgba(139,92,246,.1);color:#8b5cf6;padding:8px 16px;border-radius:20px;font-weight:600;">🔬 AI-Powered OCR</div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Upload Panel -->
+  <div class="col-xl-5">
+    <div class="c-card h-100">
+      <div class="c-card-header"><div class="c-card-title"><i class="bi bi-upload"></i> Upload Prescription</div></div>
+      <div class="c-card-body">
+        <!-- Image Upload -->
+        <div id="drop-zone" style="border:2px dashed var(--c-border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;" onclick="document.getElementById('presc-image').click()" ondragover="this.style.borderColor='var(--c-accent)';this.style.background='rgba(0,200,150,.05)';event.preventDefault();" ondragleave="this.style.borderColor='var(--c-border)';this.style.background='';" ondrop="handleDrop(event)">
+          <i class="bi bi-file-image" style="font-size:3rem;color:var(--c-muted);display:block;margin-bottom:12px;"></i>
+          <div style="font-weight:600;color:var(--c-text);margin-bottom:4px;">Drop image here or click to upload</div>
+          <div style="font-size:12px;color:var(--c-muted);">Supports: JPG, PNG, PDF • Max 10MB</div>
+          <img id="image-preview" style="max-width:100%;max-height:160px;margin-top:12px;border-radius:8px;display:none;"/>
+        </div>
+        <input type="file" id="presc-image" accept="image/*" style="display:none;" onchange="previewImage(this)"/>
+
+        <div style="text-align:center;color:var(--c-muted);font-size:13px;margin-bottom:16px;">— or paste prescription text —</div>
+
+        <label class="form-label-ph">Prescription Text</label>
+        <textarea id="presc-text" class="form-ph" rows="7" placeholder="Paste prescription text here...&#10;Example:&#10;Tab Crocin 500mg - 1-0-1 (3 days)&#10;Cap Amoxicillin 500mg - 1-1-1 (5 days)&#10;Syrup Ibugesic 100ml - 5ml TDS"></textarea>
+        <div class="mt-3 d-flex gap-2">
+          <button class="btn-ph btn-ph-accent flex-grow-1" id="btn-process-ocr"><i class="bi bi-robot"></i> Process Prescription</button>
+          <button class="btn-ph btn-ph-outline" id="btn-load-demo">Demo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Panel -->
+  <div class="col-xl-7">
+    <div class="c-card h-100">
+      <div class="c-card-header"><div class="c-card-title"><i class="bi bi-list-check"></i> Extracted Medicines</div></div>
+      <div class="c-card-body">
+        <div id="ocr-loading" style="display:none;text-align:center;padding:40px;">
+          <div class="spinner-border text-primary mb-3" style="width:40px;height:40px;"></div>
+          <p class="text-muted">AI is analyzing prescription...</p>
+        </div>
+        <div id="ocr-placeholder" style="text-align:center;padding:40px;color:var(--c-muted);">
+          <i class="bi bi-file-text" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
+          <p>Upload a prescription image or paste text to extract medicine names</p>
+        </div>
+        <div id="ocr-results" style="display:none;">
+          <div id="extracted-medicines" class="mb-4"></div>
+          <hr style="border-color:var(--c-border);">
+          <div style="font-weight:700;font-size:14px;color:var(--c-text);margin-bottom:12px;">
+            <i class="bi bi-stars" style="color:var(--c-accent);"></i> ML Recommended Alternatives
+          </div>
+          <div id="ocr-recommendations" class="row g-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Scans -->
+{% if recent %}
+<div class="c-card">
+  <div class="c-card-header"><div class="c-card-title"><i class="bi bi-clock-history"></i> Recent Prescriptions</div></div>
+  <div class="c-card-body">
+    <div class="row g-3">
+      {% for p in recent %}
+      <div class="col-md-6">
+        <div style="padding:12px;background:#f8fafc;border-radius:10px;border:1px solid var(--c-border);">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px;">Prescription #{{ p.id }}</div>
+          <div style="font-size:12px;color:var(--c-muted);">{{ p.created_at|date:"d M Y, H:i" }}</div>
+          {% if p.extracted_medicines %}
+          <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+            {% for med in p.extracted_medicines|slice:":4" %}
+            <span style="background:rgba(0,200,150,.1);color:var(--c-accent);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">{{ med }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const DEMO_TEXT=`Dr. R. K. Sharma, MD Medicine
+Patient: John Doe | Date: ${new Date().toLocaleDateString('en-IN')}
+
+Rx:
+1. Tab Crocin 500mg - 1-0-1 (3 days)
+2. Cap Amoxicillin 500mg - 1-1-1 (5 days)
+3. Syrup Ibugesic Plus 100ml - 5ml TDS
+4. Tab Cetirizine 10mg - 0-0-1 (5 days)
+5. Tab Pantoprazole 40mg - 1-0-0 (7 days)
+
+Advice: Take after food. Drink plenty of fluids.`;
+
+document.getElementById('btn-load-demo').addEventListener('click',()=>{
+  document.getElementById('presc-text').value=DEMO_TEXT;
+  showToast('Demo prescription loaded!');
+});
+
+function previewImage(input){
+  if(!input.files||!input.files[0])return;
+  const url=URL.createObjectURL(input.files[0]);
+  const img=document.getElementById('image-preview');
+  img.src=url;img.style.display='block';
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  const file=e.dataTransfer.files[0];
+  if(file&&file.type.startsWith('image/')){
+    const input=document.getElementById('presc-image');
+    const dt=new DataTransfer();dt.items.add(file);input.files=dt.files;previewImage(input);
+  }
+  document.getElementById('drop-zone').style.borderColor='var(--c-border)';
+  document.getElementById('drop-zone').style.background='';
+}
+
+document.getElementById('btn-process-ocr').addEventListener('click',async()=>{
+  const text=document.getElementById('presc-text').value.trim();
+  const imageFile=document.getElementById('presc-image').files[0];
+  if(!text&&!imageFile){showToast('Please upload an image or enter prescription text','warning');return;}
+
+  document.getElementById('ocr-loading').style.display='block';
+  document.getElementById('ocr-placeholder').style.display='none';
+  document.getElementById('ocr-results').style.display='none';
+
+  const formData=new FormData();
+  if(text)formData.append('text',text);
+  if(imageFile)formData.append('image',imageFile);
+
+  try{
+    const r=await fetch('/api/ocr/',{method:'POST',headers:{'X-CSRFToken':getCsrf()},body:formData,credentials:'same-origin'});
+    const data=await r.json();
+    document.getElementById('ocr-loading').style.display='none';
+    renderOCRResults(data);
+  }catch(e){
+    document.getElementById('ocr-loading').style.display='none';
+    showToast('Processing failed: '+e.message,'error');
+  }
+});
+
+function renderOCRResults(data){
+  document.getElementById('ocr-results').style.display='block';
+  const extracted=data.extracted_medicines||[];
+  const recs=data.recommendations||[];
+
+  if(extracted.length>0){
+    document.getElementById('extracted-medicines').innerHTML=`
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--c-text);">
+        <i class="bi bi-list-check" style="color:var(--c-accent);"></i> Extracted Medicines (${extracted.length} found)
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${extracted.map(m=>`<span style="background:rgba(11,61,107,.08);color:var(--c-primary);padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid rgba(11,61,107,.15);">💊 ${m}</span>`).join('')}
+      </div>`;
+  }else{
+    document.getElementById('extracted-medicines').innerHTML=`<div class="text-muted">No specific medicine names could be extracted. Check recommendations below.</div>`;
+  }
+
+  if(recs.length>0){
+    document.getElementById('ocr-recommendations').innerHTML=recs.map(r=>`
+      <div class="col-md-6">
+        <div style="padding:12px;background:#f8fafc;border-radius:10px;border:1px solid var(--c-border);">
+          ${r.for_medicine?`<div style="font-size:10px;color:var(--c-muted);margin-bottom:4px;">For: ${r.for_medicine}</div>`:''}
+          <div style="font-weight:700;font-size:13px;color:var(--c-primary);">${r.name}</div>
+          <div style="font-size:11.5px;color:var(--c-muted);">${r.generic_name||''} • ${r.presentation||''}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center;">
+            <span style="font-weight:700;color:var(--c-success);">₹${parseFloat(r.selling_price).toFixed(2)}</span>
+            <span class="stock-badge ${r.quantity>20?'stock-good':r.quantity>0?'stock-low':'stock-out'}">${r.quantity>0?r.quantity+' units':'Out of Stock'}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  }else{
+    document.getElementById('ocr-recommendations').innerHTML=`<div class="col-12 text-muted">No recommendations available.</div>`;
+  }
+}
+</script>
+{% endblock %}

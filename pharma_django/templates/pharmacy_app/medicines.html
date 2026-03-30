@@ -1,0 +1,361 @@
+{% extends 'base.html' %}
+{% block title %}Medicines{% endblock %}
+{% block topbar_icon %}capsule{% endblock %}
+{% block topbar_title %}Medicine Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-capsule"></i> Medicines</h4>
+    <div class="breadcrumb-ph">Manage all medicines, stock, pricing & suppliers</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn-ph btn-ph-outline" id="btn-export-csv"><i class="bi bi-download"></i> Export CSV</button>
+    <button class="btn-ph btn-ph-accent" id="btn-add-medicine"><i class="bi bi-plus-lg"></i> Add Medicine</button>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="c-card mb-3">
+  <div class="c-card-body" style="padding:14px 18px;">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-3">
+        <div class="input-group" style="gap:0;">
+          <span style="display:flex;align-items:center;padding:0 10px;background:#f0f4f8;border:1.5px solid var(--c-border);border-right:none;border-radius:9px 0 0 9px;"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" id="grid-search" class="form-ph" style="border-radius:0 9px 9px 0;border-left:none;" placeholder="Search medicines..."/>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <select id="filter-stock" class="form-ph">
+          <option value="">All Stock</option>
+          <option value="out">Out of Stock</option>
+          <option value="low">Low Stock</option>
+          <option value="expired">Expired</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select id="filter-generic" class="form-ph">
+          <option value="">All Generics</option>
+          {% for g in generics %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select id="filter-pres" class="form-ph">
+          <option value="">All Presentations</option>
+          {% for p in presentations %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-auto">
+        <button class="btn-ph btn-ph-primary" id="btn-apply-filter"><i class="bi bi-funnel"></i> Filter</button>
+        <button class="btn-ph btn-ph-outline ms-1" id="btn-clear-filter"><i class="bi bi-x"></i> Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AG Grid -->
+<div class="c-card">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-table"></i> Medicine Inventory</div>
+    <span id="row-count" class="badge-status" style="background:rgba(0,200,150,.1);color:var(--c-accent);font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;">Loading...</span>
+  </div>
+  <div id="medicine-grid" class="ag-theme-alpine" style="height:520px;width:100%;"></div>
+</div>
+
+<!-- ═══ ADD/EDIT MODAL ═══ -->
+<div class="modal fade modal-ph" id="medicineModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modal-title">Add New Medicine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="med-id"/>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label-ph">Medicine Name *</label>
+            <input type="text" id="med-name" class="form-ph" placeholder="e.g. Crocin 500mg Tablet" required/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label-ph">Generic Name</label>
+            <select id="med-generic" class="form-ph">
+              <option value="">Select Generic Name</option>
+              {% for g in generics %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Presentation / Form</label>
+            <select id="med-pres" class="form-ph">
+              <option value="">Select Presentation</option>
+              {% for p in presentations %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Volume / Strength</label>
+            <input type="text" id="med-volume" class="form-ph" placeholder="e.g. 500mg, 100ml"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Supplier</label>
+            <select id="med-supplier" class="form-ph">
+              <option value="">Select Supplier</option>
+              {% for s in suppliers %}<option value="{{ s.id }}">{{ s.company_name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label-ph">Purchase Price (₹)</label>
+            <input type="number" id="med-unit-price" class="form-ph" placeholder="0.00" step="0.01" min="0"/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label-ph">Selling Price (₹)</label>
+            <input type="number" id="med-selling-price" class="form-ph" placeholder="0.00" step="0.01" min="0"/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label-ph">Quantity in Stock</label>
+            <input type="number" id="med-quantity" class="form-ph" placeholder="0" min="0"/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label-ph">Expire Date</label>
+            <input type="date" id="med-expire" class="form-ph"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Amount Paid (₹)</label>
+            <input type="number" id="med-paid" class="form-ph" placeholder="0.00" step="0.01" min="0"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Purchase Due (₹)</label>
+            <input type="number" id="med-due" class="form-ph" placeholder="0.00" step="0.01" min="0"/>
+          </div>
+          <div class="col-md-12">
+            <label class="form-label-ph">Description / Notes</label>
+            <textarea id="med-desc" class="form-ph" rows="2" placeholder="Optional notes about the medicine"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ph btn-ph-accent" id="btn-save-medicine"><i class="bi bi-check-lg"></i> Save Medicine</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- View Details Modal -->
+<div class="modal fade modal-ph" id="viewModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Medicine Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="view-modal-body" style="font-size:13.5px;"></div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let grid, rowData = [];
+const medModal  = new bootstrap.Modal(document.getElementById('medicineModal'));
+const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+
+// ─── AG Grid column definitions ───
+const columnDefs = [
+  { headerName:'#', valueGetter:'node.rowIndex+1', width:55, pinned:'left', sortable:false },
+  { headerName:'Medicine Name', field:'name', minWidth:200, pinned:'left', filter:'agTextColumnFilter',
+    cellRenderer: p => `<strong style="color:var(--c-primary);">${p.value}</strong>` },
+  { headerName:'Generic', field:'generic_name_display', minWidth:130, filter:'agTextColumnFilter' },
+  { headerName:'Presentation', field:'presentation_display', width:120 },
+  { headerName:'Volume', field:'volume', width:100 },
+  { headerName:'Purchase ₹', field:'unit_price', width:120,
+    cellRenderer: p => `<span style="color:var(--c-muted)">₹${parseFloat(p.value||0).toFixed(2)}</span>` },
+  { headerName:'Selling ₹', field:'selling_price', width:120,
+    cellRenderer: p => `<strong style="color:var(--c-success)">₹${parseFloat(p.value||0).toFixed(2)}</strong>` },
+  { headerName:'Margin %', field:'profit_margin', width:110,
+    cellRenderer: p => {
+      const v = parseFloat(p.value||0);
+      const color = v > 30 ? 'var(--c-success)' : v > 10 ? 'var(--c-warning)' : 'var(--c-danger)';
+      return `<span style="color:${color};font-weight:600">${v}%</span>`;
+    }
+  },
+  { headerName:'Stock', field:'quantity', width:130, cellRenderer: p => stockBadgeRenderer(p) },
+  { headerName:'Expire Date', field:'expire_date', width:130,
+    cellRenderer: p => {
+      if (!p.value) return '—';
+      const d = new Date(p.value); const today = new Date();
+      const days = Math.ceil((d-today)/(1000*60*60*24));
+      const color = days < 0 ? 'var(--c-danger)' : days < 30 ? 'var(--c-warning)' : 'var(--c-success)';
+      return `<span style="color:${color}">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>`;
+    }
+  },
+  { headerName:'Supplier', field:'supplier_display', minWidth:130 },
+  { headerName:'Actions', field:'id', width:130, pinned:'right', sortable:false,
+    cellRenderer: p => `
+      <div class="d-flex gap-1 align-items-center h-100">
+        <button class="grid-action-btn" style="background:rgba(11,61,107,.1);color:var(--c-primary);" onclick="viewMedicine(${p.value})" title="View"><i class="bi bi-eye"></i></button>
+        <button class="grid-action-btn" style="background:rgba(0,200,150,.1);color:var(--c-accent);" onclick="editMedicine(${p.value})" title="Edit"><i class="bi bi-pencil"></i></button>
+        <button class="grid-action-btn" style="background:rgba(229,57,53,.1);color:var(--c-danger);" onclick="deleteMedicine(${p.value})" title="Delete"><i class="bi bi-trash3"></i></button>
+      </div>`
+  },
+];
+
+// Grid options
+const gridOptions = {
+  columnDefs,
+  rowData: [],
+  defaultColDef: { sortable: true, resizable: true, filter: true },
+  animateRows: true,
+  pagination: true,
+  paginationPageSize: 20,
+  rowHeight: 44,
+  headerHeight: 44,
+  onGridReady: () => loadMedicines(),
+};
+
+const gridEl = document.getElementById('medicine-grid');
+grid = agGrid.createGrid(gridEl, gridOptions);
+
+async function loadMedicines() {
+  const q     = document.getElementById('grid-search').value;
+  const stock = document.getElementById('filter-stock').value;
+  const gen   = document.getElementById('filter-generic').value;
+  const pres  = document.getElementById('filter-pres').value;
+
+  let url = '/api/medicines/?';
+  if (q)     url += `q=${encodeURIComponent(q)}&`;
+  if (stock) url += `stock=${stock}&`;
+  if (gen)   url += `generic=${gen}&`;
+  if (pres)  url += `presentation=${pres}&`;
+
+  try {
+    rowData = await apiCall(url);
+    grid.setGridOption('rowData', rowData);
+    document.getElementById('row-count').textContent = `${rowData.length} medicines`;
+  } catch(e) {
+    showToast('Failed to load medicines: ' + e.message, 'error');
+  }
+}
+
+// Quick search
+document.getElementById('grid-search').addEventListener('input', e => {
+  grid.setGridOption('quickFilterText', e.target.value);
+});
+
+document.getElementById('btn-apply-filter').addEventListener('click', loadMedicines);
+document.getElementById('btn-clear-filter').addEventListener('click', () => {
+  document.getElementById('grid-search').value = '';
+  document.getElementById('filter-stock').value = '';
+  document.getElementById('filter-generic').value = '';
+  document.getElementById('filter-pres').value = '';
+  loadMedicines();
+});
+
+// Export CSV
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  grid.exportDataAsCsv({ fileName: 'medicines.csv' });
+});
+
+// ─── ADD ───
+document.getElementById('btn-add-medicine').addEventListener('click', () => {
+  document.getElementById('modal-title').textContent = 'Add New Medicine';
+  document.getElementById('med-id').value = '';
+  ['name','volume','desc'].forEach(f => document.getElementById(`med-${f}`).value = '');
+  ['generic','pres','supplier'].forEach(f => document.getElementById(`med-${f}`).value = '');
+  ['unit-price','selling-price','quantity','paid','due'].forEach(f => document.getElementById(`med-${f}`).value = 0);
+  document.getElementById('med-expire').value = '';
+  medModal.show();
+});
+
+// ─── SAVE ───
+document.getElementById('btn-save-medicine').addEventListener('click', async () => {
+  const id = document.getElementById('med-id').value;
+  const payload = {
+    name: document.getElementById('med-name').value,
+    generic_name: document.getElementById('med-generic').value || null,
+    presentation: document.getElementById('med-pres').value || null,
+    volume: document.getElementById('med-volume').value,
+    supplier: document.getElementById('med-supplier').value || null,
+    unit_price: document.getElementById('med-unit-price').value || 0,
+    selling_price: document.getElementById('med-selling-price').value || 0,
+    quantity: document.getElementById('med-quantity').value || 0,
+    expire_date: document.getElementById('med-expire').value || null,
+    purchase_paid: document.getElementById('med-paid').value || 0,
+    purchase_due: document.getElementById('med-due').value || 0,
+    description: document.getElementById('med-desc').value,
+  };
+  if (!payload.name) { showToast('Medicine name is required','warning'); return; }
+  try {
+    if (id) {
+      await apiCall(`/api/medicines/${id}/`, 'PUT', payload);
+      showToast('Medicine updated successfully');
+    } else {
+      await apiCall('/api/medicines/', 'POST', payload);
+      showToast('Medicine added successfully');
+    }
+    medModal.hide();
+    loadMedicines();
+  } catch(e) {
+    showToast('Save failed: ' + e.message, 'error');
+  }
+});
+
+// ─── VIEW ───
+function viewMedicine(id) {
+  const med = rowData.find(m => m.id === id);
+  if (!med) return;
+  const expired = med.is_expired ? '🔴 Expired' : '✅ Valid';
+  document.getElementById('view-modal-body').innerHTML = `
+    <div class="row g-2" style="font-size:13px;">
+      <div class="col-6"><span class="text-muted">Name</span><p class="fw-bold">${med.name}</p></div>
+      <div class="col-6"><span class="text-muted">Generic</span><p>${med.generic_name_display||'—'}</p></div>
+      <div class="col-6"><span class="text-muted">Presentation</span><p>${med.presentation_display||'—'}</p></div>
+      <div class="col-6"><span class="text-muted">Volume</span><p>${med.volume||'—'}</p></div>
+      <div class="col-4"><span class="text-muted">Purchase Price</span><p class="fw-bold">₹${med.unit_price}</p></div>
+      <div class="col-4"><span class="text-muted">Selling Price</span><p class="fw-bold text-success">₹${med.selling_price}</p></div>
+      <div class="col-4"><span class="text-muted">Margin</span><p class="fw-bold">${med.profit_margin}%</p></div>
+      <div class="col-4"><span class="text-muted">Stock</span><p class="fw-bold">${med.quantity} units</p></div>
+      <div class="col-4"><span class="text-muted">Expire Date</span><p>${med.expire_date||'—'} ${expired}</p></div>
+      <div class="col-4"><span class="text-muted">Supplier</span><p>${med.supplier_display||'—'}</p></div>
+      <div class="col-12"><span class="text-muted">Description</span><p>${med.description||'—'}</p></div>
+    </div>`;
+  viewModal.show();
+}
+
+// ─── EDIT ───
+function editMedicine(id) {
+  const med = rowData.find(m => m.id === id);
+  if (!med) return;
+  document.getElementById('modal-title').textContent = 'Edit Medicine';
+  document.getElementById('med-id').value = med.id;
+  document.getElementById('med-name').value = med.name;
+  document.getElementById('med-generic').value = med.generic_name || '';
+  document.getElementById('med-pres').value = med.presentation || '';
+  document.getElementById('med-volume').value = med.volume || '';
+  document.getElementById('med-supplier').value = med.supplier || '';
+  document.getElementById('med-unit-price').value = med.unit_price;
+  document.getElementById('med-selling-price').value = med.selling_price;
+  document.getElementById('med-quantity').value = med.quantity;
+  document.getElementById('med-expire').value = med.expire_date || '';
+  document.getElementById('med-paid').value = med.purchase_paid;
+  document.getElementById('med-due').value = med.purchase_due;
+  document.getElementById('med-desc').value = med.description || '';
+  medModal.show();
+}
+
+// ─── DELETE ───
+async function deleteMedicine(id) {
+  if (!confirmDelete('Delete this medicine? This action cannot be undone.')) return;
+  try {
+    await apiCall(`/api/medicines/${id}/`, 'DELETE');
+    showToast('Medicine deleted');
+    loadMedicines();
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+</script>
+{% endblock %}

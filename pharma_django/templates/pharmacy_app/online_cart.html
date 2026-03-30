@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% block title %}Online Cart{% endblock %}
+{% block topbar_icon %}cart3{% endblock %}
+{% block topbar_title %}Shopping Cart{% endblock %}
+
+{% block content %}
+<style>
+  .cart-shell {
+    display: grid;
+    gap: 16px;
+  }
+
+  .cart-hero {
+    background: linear-gradient(120deg, #fff1ea 0%, #fffaf6 50%, #eef8ff 100%);
+    border: 1px solid #f2d9cd;
+    border-radius: 18px;
+    padding: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .cart-hero h1 {
+    margin: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.55rem;
+    color: #1b3552;
+  }
+
+  .cart-hero p {
+    margin: 5px 0 0;
+    color: #5e7289;
+    font-size: .95rem;
+  }
+
+  .cart-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+    border: 1px solid #d7e6f2;
+    background: #f7fbff;
+    color: #2a5379;
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-weight: 700;
+    font-size: .88rem;
+  }
+
+  .cart-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 14px;
+  }
+
+  .cart-table-wrap {
+    background: #fff;
+    border: 1px solid #e5ecf1;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .cart-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .cart-table thead {
+    background: #f7fafd;
+  }
+
+  .cart-table th,
+  .cart-table td {
+    padding: 12px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+    font-size: .9rem;
+  }
+
+  .cart-table th {
+    color: #49617d;
+    font-size: .79rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  .cart-med {
+    display: grid;
+    gap: 3px;
+  }
+
+  .cart-med strong {
+    color: #1c3753;
+    font-size: .94rem;
+  }
+
+  .cart-med span {
+    color: #64778e;
+    font-size: .82rem;
+  }
+
+  .cart-qty-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .cart-qty-input {
+    width: 88px;
+    height: 37px;
+    border: 1px solid #d5e1ec;
+    border-radius: 10px;
+    padding: 0 10px;
+    font-size: .9rem;
+  }
+
+  .cart-mini-btn {
+    border: 0;
+    border-radius: 10px;
+    padding: 8px 11px;
+    font-size: .8rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cart-mini-save {
+    background: #163a5e;
+    color: #fff;
+  }
+
+  .cart-mini-remove {
+    background: #fef0ee;
+    color: #bf3d33;
+    border: 1px solid #f6cec8;
+  }
+
+  .cart-price {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    color: #1f3a57;
+  }
+
+  .cart-summary {
+    background: #fff;
+    border: 1px solid #e5ecf1;
+    border-radius: 16px;
+    padding: 14px;
+    height: fit-content;
+    display: grid;
+    gap: 10px;
+  }
+
+  .cart-summary h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: #263e5b;
+  }
+
+  .cart-line {
+    display: flex;
+    justify-content: space-between;
+    color: #5a6f86;
+    font-size: .9rem;
+  }
+
+  .cart-line strong {
+    color: #1a3654;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .cart-checkout {
+    margin-top: 4px;
+    border: 0;
+    border-radius: 11px;
+    background: #ff6f61;
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 11px 12px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .cart-checkout.disabled {
+    opacity: .55;
+    pointer-events: none;
+  }
+
+  .cart-empty {
+    text-align: center;
+    color: #64768c;
+    padding: 30px 16px;
+  }
+
+  @media (max-width: 1024px) {
+    .cart-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .cart-table th,
+    .cart-table td {
+      padding: 10px 8px;
+      font-size: .82rem;
+    }
+    .cart-qty-input {
+      width: 75px;
+    }
+  }
+</style>
+
+<div class="cart-shell">
+  <section class="cart-hero">
+    <div>
+      <h1>Your Online Cart</h1>
+      <p>Review quantities, update items, and move to secure checkout.</p>
+    </div>
+    <a href="{% url 'online_medicines' %}" class="cart-link-btn"><i class="bi bi-capsule-pill"></i> Continue Shopping</a>
+  </section>
+
+  <section class="cart-grid">
+    <div class="cart-table-wrap">
+      <div class="table-responsive">
+        <table class="cart-table">
+          <thead>
+            <tr>
+              <th>Medicine</th>
+              <th>Unit Price</th>
+              <th>Quantity</th>
+              <th>Line Total</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+              <tr>
+                <td>
+                  <div class="cart-med">
+                    <strong>{{ item.medicine.name }}</strong>
+                    <span>Available stock: {{ item.medicine.quantity }}</span>
+                  </div>
+                </td>
+                <td class="cart-price">Rs.{{ item.medicine.selling_price }}</td>
+                <td>
+                  <form method="post" action="{% url 'online_update_cart_item' item.id %}" class="cart-qty-form">
+                    {% csrf_token %}
+                    <input class="cart-qty-input" type="number" min="0" max="{{ item.medicine.quantity }}" name="quantity" value="{{ item.quantity }}">
+                    <button class="cart-mini-btn cart-mini-save" type="submit"><i class="bi bi-arrow-repeat"></i> Update</button>
+                  </form>
+                </td>
+                <td class="cart-price">Rs.{{ item.line_total }}</td>
+                <td>
+                  <a href="{% url 'online_remove_cart_item' item.id %}" class="cart-mini-btn cart-mini-remove"><i class="bi bi-trash3"></i> Remove</a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="cart-empty">Your cart is empty. Add medicines to continue.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <aside class="cart-summary">
+      <h2>Order Summary</h2>
+      <div class="cart-line"><span>Items</span><strong>{{ items|length }}</strong></div>
+      <div class="cart-line"><span>Delivery</span><strong>Free</strong></div>
+      <div class="cart-line"><span>Total Payable</span><strong>Rs.{{ total }}</strong></div>
+      <a href="{% url 'online_checkout' %}" class="cart-checkout {% if not items %}disabled{% endif %}">
+        <i class="bi bi-credit-card"></i> Proceed to Checkout
+      </a>
+      <a href="{% url 'online_orders' %}" class="cart-link-btn" style="justify-content:center;"><i class="bi bi-truck"></i> View Orders</a>
+    </aside>
+  </section>
+</div>
+{% endblock %}

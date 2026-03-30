@@ -1,0 +1,383 @@
+{% extends 'base.html' %}
+{% block title %}New Sale{% endblock %}
+{% block topbar_icon %}receipt{% endblock %}
+{% block topbar_title %}New Sale / Billing{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4><i class="bi bi-receipt"></i> New Sale / Billing</h4>
+    <div class="breadcrumb-ph">Create a new sale — select medicines and generate invoice</div>
+  </div>
+  <a href="{% url 'sales_list' %}" class="btn-ph btn-ph-outline"><i class="bi bi-clock-history"></i> Sales History</a>
+</div>
+
+<div class="row g-3">
+  <!-- Cart -->
+  <div class="col-xl-8">
+    <div class="c-card mb-3">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-cart3"></i> Medicine Cart</div>
+        <button class="btn-ph btn-ph-accent btn-sm-ph" id="btn-add-item"><i class="bi bi-plus-lg"></i> Add Item</button>
+      </div>
+      <div class="c-card-body p-0">
+        <table class="table table-hover mb-0" style="font-size:13px;" id="cart-table">
+          <thead style="background:#f7f9fc;">
+            <tr>
+              <th class="px-3 py-2" style="font-size:11.5px;font-weight:700;color:var(--c-muted);">MEDICINE</th>
+              <th style="font-size:11.5px;font-weight:700;color:var(--c-muted);">PRICE</th>
+              <th style="font-size:11.5px;font-weight:700;color:var(--c-muted);">QTY</th>
+              <th style="font-size:11.5px;font-weight:700;color:var(--c-muted);">DISCOUNT</th>
+              <th style="font-size:11.5px;font-weight:700;color:var(--c-muted);">SUBTOTAL</th>
+              <th style="font-size:11.5px;font-weight:700;color:var(--c-muted);"></th>
+            </tr>
+          </thead>
+          <tbody id="cart-body">
+            <tr id="empty-cart-row">
+              <td colspan="6" class="text-center py-5 text-muted">
+                <i class="bi bi-cart-x" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                No items added yet. Click <strong>Add Item</strong> to start.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div class="c-card">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-person"></i> Customer Details</div>
+      </div>
+      <div class="c-card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label-ph">Customer Name</label>
+            <input type="text" id="cust-name" class="form-ph" placeholder="Walk-in / Patient name"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Email</label>
+            <input type="email" id="cust-email" class="form-ph" placeholder="customer@email.com"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-ph">Phone</label>
+            <input type="text" id="cust-phone" class="form-ph" placeholder="+91 99999 99999"/>
+          </div>
+          <div class="col-md-12">
+            <label class="form-label-ph">Notes</label>
+            <textarea id="sale-notes" class="form-ph" rows="2" placeholder="Optional notes"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Panel -->
+  <div class="col-xl-4">
+    <div class="c-card" style="position:sticky;top:80px;">
+      <div class="c-card-header">
+        <div class="c-card-title"><i class="bi bi-calculator"></i> Payment Summary</div>
+      </div>
+      <div class="c-card-body">
+        <div class="d-flex justify-content-between mb-2" style="font-size:13.5px;">
+          <span class="text-muted">Subtotal</span>
+          <span id="summary-subtotal">₹0.00</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2" style="font-size:13.5px;">
+          <span class="text-muted">Item Discounts</span>
+          <span id="summary-item-disc" class="text-danger">-₹0.00</span>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-ph">Extra Discount (₹)</label>
+          <input type="number" id="extra-discount" class="form-ph" value="0" min="0" placeholder="0.00"/>
+        </div>
+        <hr style="border-color:var(--c-border);">
+        <div class="d-flex justify-content-between mb-3">
+          <span style="font-size:15px;font-weight:700;color:var(--c-text);">TOTAL</span>
+          <span style="font-size:18px;font-weight:700;color:var(--c-primary);" id="summary-total">₹0.00</span>
+        </div>
+        <div class="mb-3">
+          <label class="form-label-ph">Amount Paid (₹)</label>
+          <input type="number" id="amount-paid" class="form-ph" value="0" min="0" placeholder="0.00"/>
+        </div>
+        <div class="d-flex justify-content-between mb-3" style="font-size:13.5px;">
+          <span class="text-muted">Change / Return</span>
+          <span id="change-amount" style="font-weight:700;color:var(--c-success);">₹0.00</span>
+        </div>
+        <button class="btn-ph btn-ph-success w-100 justify-content-center py-3" id="btn-process-sale" style="font-size:15px;border-radius:10px;">
+          <i class="bi bi-check-circle"></i> Process Sale
+        </button>
+        <button class="btn-ph btn-ph-outline w-100 justify-content-center mt-2" id="btn-clear-cart">
+          <i class="bi bi-trash3"></i> Clear Cart
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade modal-ph" id="addItemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Medicine to Cart</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label-ph">Search Medicine</label>
+          <input type="text" id="item-search" class="form-ph" placeholder="Type medicine name..."/>
+        </div>
+        <div id="item-search-results" style="max-height:200px;overflow-y:auto;margin-bottom:16px;"></div>
+        <div id="selected-medicine-info" style="display:none;background:rgba(0,200,150,.07);border:1px solid rgba(0,200,150,.2);border-radius:9px;padding:12px;margin-bottom:12px;">
+          <div id="sel-med-name" style="font-weight:700;color:var(--c-primary);margin-bottom:4px;"></div>
+          <div id="sel-med-stock" style="font-size:12px;color:var(--c-muted);"></div>
+        </div>
+        <input type="hidden" id="item-med-id"/>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label-ph">Unit Price (₹)</label>
+            <input type="number" id="item-price" class="form-ph" placeholder="0.00" step="0.01" min="0"/>
+          </div>
+          <div class="col-6">
+            <label class="form-label-ph">Quantity *</label>
+            <input type="number" id="item-qty" class="form-ph" placeholder="1" min="1"/>
+          </div>
+          <div class="col-6">
+            <label class="form-label-ph">Discount (₹)</label>
+            <input type="number" id="item-discount" class="form-ph" value="0" min="0"/>
+          </div>
+          <div class="col-6">
+            <label class="form-label-ph">Subtotal (₹)</label>
+            <input type="number" id="item-subtotal" class="form-ph" readonly style="background:#f7f9fc;"/>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn-ph btn-ph-accent" id="btn-confirm-add-item"><i class="bi bi-plus-lg"></i> Add to Cart</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Modal -->
+<div class="modal fade modal-ph" id="invoiceModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">🎉 Sale Processed Successfully!</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="invoice-body"></div>
+      <div class="modal-footer">
+        <button class="btn-ph btn-ph-outline" onclick="window.print()"><i class="bi bi-printer"></i> Print Invoice</button>
+        <button class="btn-ph btn-ph-accent" data-bs-dismiss="modal" id="btn-new-sale">New Sale</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const medicines = {{ medicines_json|safe }};
+let cart = [];
+const addItemModal = new bootstrap.Modal(document.getElementById('addItemModal'));
+const invoiceModal = new bootstrap.Modal(document.getElementById('invoiceModal'));
+
+// ─── CART LOGIC ───
+function updateCart() {
+  const tbody = document.getElementById('cart-body');
+  if (cart.length === 0) {
+    tbody.innerHTML = `<tr id="empty-cart-row"><td colspan="6" class="text-center py-5 text-muted"><i class="bi bi-cart-x" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No items added yet.</td></tr>`;
+    updateSummary();
+    return;
+  }
+  tbody.innerHTML = cart.map((item, i) => `
+    <tr>
+      <td class="px-3 py-2"><strong style="color:var(--c-primary);font-size:13px;">${item.name}</strong></td>
+      <td class="py-2">₹${parseFloat(item.price).toFixed(2)}</td>
+      <td class="py-2"><input type="number" class="form-ph" style="width:70px;padding:5px 8px;" value="${item.qty}" min="1" onchange="updateQty(${i},this.value)"/></td>
+      <td class="py-2">₹${parseFloat(item.discount||0).toFixed(2)}</td>
+      <td class="py-2"><strong style="color:var(--c-success);">₹${((item.price * item.qty) - (item.discount||0)).toFixed(2)}</strong></td>
+      <td class="py-2"><button class="grid-action-btn" style="background:rgba(229,57,53,.1);color:var(--c-danger);" onclick="removeItem(${i})"><i class="bi bi-trash3"></i></button></td>
+    </tr>`).join('');
+  updateSummary();
+}
+
+function updateQty(i, v) {
+  cart[i].qty = parseInt(v) || 1;
+  updateCart();
+}
+
+function removeItem(i) {
+  cart.splice(i, 1);
+  updateCart();
+  showToast('Item removed from cart', 'warning');
+}
+
+function updateSummary() {
+  const subtotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+  const itemDisc = cart.reduce((s, i) => s + (parseFloat(i.discount)||0), 0);
+  const extraDisc = parseFloat(document.getElementById('extra-discount').value) || 0;
+  const total = Math.max(0, subtotal - itemDisc - extraDisc);
+  const paid = parseFloat(document.getElementById('amount-paid').value) || 0;
+  const change = Math.max(0, paid - total);
+
+  document.getElementById('summary-subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+  document.getElementById('summary-item-disc').textContent = `-₹${itemDisc.toFixed(2)}`;
+  document.getElementById('summary-total').textContent = `₹${total.toFixed(2)}`;
+  document.getElementById('change-amount').textContent = `₹${change.toFixed(2)}`;
+}
+
+['extra-discount','amount-paid'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSummary);
+});
+
+// ─── ADD ITEM MODAL ───
+document.getElementById('btn-add-item').addEventListener('click', () => {
+  document.getElementById('item-search').value = '';
+  document.getElementById('item-search-results').innerHTML = '';
+  document.getElementById('selected-medicine-info').style.display = 'none';
+  document.getElementById('item-med-id').value = '';
+  document.getElementById('item-price').value = '';
+  document.getElementById('item-qty').value = 1;
+  document.getElementById('item-discount').value = 0;
+  document.getElementById('item-subtotal').value = '';
+  addItemModal.show();
+});
+
+document.getElementById('item-search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  const results = q.length > 1 ? medicines.filter(m => m.name.toLowerCase().includes(q)).slice(0,8) : [];
+  const el = document.getElementById('item-search-results');
+  if (results.length === 0) { el.innerHTML = q.length > 1 ? `<div class="text-muted text-center py-2" style="font-size:13px;">No results for "${q}"</div>` : ''; return; }
+  el.innerHTML = results.map(m => `
+    <div class="d-flex justify-content-between align-items-center p-2 rounded mb-1"
+         style="cursor:pointer;background:#f8fafc;border:1px solid var(--c-border);"
+         onclick="selectMedicine(${m.id})">
+      <div>
+        <div style="font-weight:600;font-size:13px;color:var(--c-primary);">${m.name}</div>
+        <div style="font-size:11px;color:var(--c-muted);">₹${m.selling_price} | ${m.quantity} units</div>
+      </div>
+      ${m.quantity > 0 ? '<span class="stock-badge stock-ok">In Stock</span>' : '<span class="stock-badge stock-out">Out of Stock</span>'}
+    </div>`).join('');
+});
+
+function selectMedicine(id) {
+  const m = medicines.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('item-med-id').value = m.id;
+  document.getElementById('item-price').value = parseFloat(m.selling_price).toFixed(2);
+  document.getElementById('selected-medicine-info').style.display = 'block';
+  document.getElementById('sel-med-name').textContent = m.name;
+  document.getElementById('sel-med-stock').textContent = `₹${m.selling_price} | Stock: ${m.quantity} units`;
+  document.getElementById('item-search-results').innerHTML = '';
+  document.getElementById('item-search').value = m.name;
+  calcItemSub();
+}
+
+function calcItemSub() {
+  const p = parseFloat(document.getElementById('item-price').value)||0;
+  const q = parseInt(document.getElementById('item-qty').value)||1;
+  const d = parseFloat(document.getElementById('item-discount').value)||0;
+  document.getElementById('item-subtotal').value = Math.max(0, (p*q)-d).toFixed(2);
+}
+
+['item-price','item-qty','item-discount'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calcItemSub);
+});
+
+document.getElementById('btn-confirm-add-item').addEventListener('click', () => {
+  const id = document.getElementById('item-med-id').value;
+  if (!id) { showToast('Please select a medicine', 'warning'); return; }
+  const m = medicines.find(x => x.id == id);
+  const qty = parseInt(document.getElementById('item-qty').value) || 1;
+  if (qty > m.quantity) { showToast(`Insufficient stock. Available: ${m.quantity}`, 'error'); return; }
+  cart.push({
+    id: m.id,
+    name: m.name,
+    price: parseFloat(document.getElementById('item-price').value),
+    qty,
+    discount: parseFloat(document.getElementById('item-discount').value)||0,
+  });
+  updateCart();
+  addItemModal.hide();
+  showToast(`${m.name} added to cart`);
+});
+
+// ─── PROCESS SALE ───
+document.getElementById('btn-process-sale').addEventListener('click', async () => {
+  if (cart.length === 0) { showToast('Cart is empty', 'warning'); return; }
+  const extraDisc = parseFloat(document.getElementById('extra-discount').value)||0;
+  const paid = parseFloat(document.getElementById('amount-paid').value)||0;
+  const payload = {
+    customer_name: document.getElementById('cust-name').value,
+    customer_email: document.getElementById('cust-email').value,
+    customer_phone: document.getElementById('cust-phone').value,
+    notes: document.getElementById('sale-notes').value,
+    discount: extraDisc,
+    paid_amount: paid,
+    items: cart.map(i => ({
+      medicine: i.id,
+      quantity: i.qty,
+      unit_price: i.price,
+      discount: i.discount || 0,
+    })),
+  };
+  try {
+    document.getElementById('btn-process-sale').disabled = true;
+    const sale = await apiCall('/api/sales/', 'POST', payload);
+    showInvoice(sale);
+  } catch(e) {
+    showToast('Sale failed: ' + e.message, 'error');
+  } finally {
+    document.getElementById('btn-process-sale').disabled = false;
+  }
+});
+
+function showInvoice(sale) {
+  const items = sale.items || [];
+  document.getElementById('invoice-body').innerHTML = `
+    <div style="font-family:'DM Sans',sans-serif;">
+      <div style="text-align:center;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,#0b3d6b,#1160a8);color:#fff;border-radius:10px;">
+        <div style="font-size:24px;font-weight:800;">💊 AL-HAMD Pharmacy</div>
+        <div style="opacity:.8;font-size:12px;">Tax Invoice</div>
+        <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:14px;background:rgba(255,255,255,.1);padding:4px 12px;border-radius:6px;display:inline-block;">${sale.invoice_number}</div>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-6"><strong>Customer:</strong> ${sale.customer_name||'Walk-in'}</div>
+        <div class="col-6 text-end"><strong>Date:</strong> ${new Date(sale.sale_date).toLocaleString('en-IN')}</div>
+      </div>
+      <table class="table table-sm" style="font-size:13px;">
+        <thead style="background:#f7f9fc;"><tr><th>Medicine</th><th>Qty</th><th>Price</th><th>Disc</th><th>Total</th></tr></thead>
+        <tbody>${items.map(i => `<tr><td>${i.medicine_name}</td><td>${i.quantity}</td><td>₹${i.unit_price}</td><td>₹${i.discount}</td><td>₹${i.sub_total}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="text-end">
+        <div>Subtotal: <strong>₹${sale.total_amount}</strong></div>
+        <div>Discount: <strong class="text-danger">-₹${sale.discount}</strong></div>
+        <div style="font-size:18px;font-weight:700;color:var(--c-primary);">TOTAL: ₹${sale.sub_total}</div>
+        <div class="text-muted">Paid: ₹${sale.paid_amount} | Change: ₹${sale.change_amount}</div>
+      </div>
+      <div style="text-align:center;margin-top:16px;font-size:12px;color:#6b7a90;">Thank you for your purchase! Get well soon 💊</div>
+    </div>`;
+  invoiceModal.show();
+  cart = [];
+  updateCart();
+}
+
+document.getElementById('btn-clear-cart').addEventListener('click', () => {
+  if (cart.length && !confirm('Clear all items from cart?')) return;
+  cart = [];
+  updateCart();
+});
+
+document.getElementById('btn-new-sale').addEventListener('click', () => {
+  invoiceModal.hide();
+  ['cust-name','cust-email','cust-phone','sale-notes'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('extra-discount').value=0;
+  document.getElementById('amount-paid').value=0;
+});
+</script>
+{% endblock %}

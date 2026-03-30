@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Online Purchase{% endblock %}
+{% block topbar_icon %}bag-check{% endblock %}
+{% block topbar_title %}Online Purchase{% endblock %}
+
+{% block content %}
+<div class="page-header mb-3">
+  <div>
+    <h4><i class="bi bi-bag-check"></i> Online Purchase Dashboard</h4>
+    <div class="breadcrumb-ph">Use-only widgets: summary, quick actions, recent orders, prescription review</div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Total Orders</div><div style="font-size:1.8rem;font-weight:700;">{{ total_online_orders }}</div></div></div>
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Pending Orders</div><div style="font-size:1.8rem;font-weight:700;">{{ pending_online_orders }}</div></div></div>
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Delivered Orders</div><div style="font-size:1.8rem;font-weight:700;">{{ delivered_online_orders }}</div></div></div>
+  <div class="col-md-3"><div class="c-card p-3"><div class="text-muted small">Online Revenue</div><div style="font-size:1.8rem;font-weight:700;">Rs.{{ online_revenue|floatformat:0 }}</div></div></div>
+</div>
+
+<div class="c-card mb-4">
+  <div class="c-card-header"><div class="c-card-title"><i class="bi bi-lightning-charge"></i> Quick Actions</div></div>
+  <div class="c-card-body d-flex flex-wrap gap-2">
+    <a href="{% url 'online_medicines' %}" class="btn-ph btn-ph-primary"><i class="bi bi-capsule-pill"></i> Browse Medicines</a>
+    <a href="{% url 'online_cart' %}" class="btn-ph btn-ph-outline"><i class="bi bi-cart3"></i> Open Cart</a>
+    <a href="{% url 'online_checkout' %}" class="btn-ph btn-ph-outline"><i class="bi bi-credit-card"></i> Checkout</a>
+    <a href="{% url 'online_orders' %}" class="btn-ph btn-ph-outline"><i class="bi bi-truck"></i> Manage Orders</a>
+  </div>
+</div>
+
+<div class="c-card mb-4">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-list-check"></i> Recent Online Orders</div>
+    <form method="get" class="d-flex gap-2">
+      <select class="form-ph" name="status" style="min-width:180px;">
+        <option value="">All Status</option>
+        {% for value, label in order_status_choices %}
+          <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn-ph btn-ph-primary" type="submit">Filter</button>
+    </form>
+  </div>
+  <div class="c-card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead style="background:#f8fafc;">
+          <tr><th class="px-3 py-2">Order ID</th><th class="py-2">Customer</th><th class="py-2">Status</th><th class="py-2">Amount</th><th class="py-2">Date</th></tr>
+        </thead>
+        <tbody>
+          {% for order in recent_online_orders %}
+            <tr>
+              <td class="px-3 py-2"><a href="{% url 'online_order_detail' order.id %}">{{ order.order_id }}</a></td>
+              <td class="py-2">{{ order.customer_name|default:order.customer.user.username }}</td>
+              <td class="py-2">{{ order.get_status_display }}</td>
+              <td class="py-2">Rs.{{ order.total_amount }}</td>
+              <td class="py-2">{{ order.created_at|date:"d M Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center py-4 text-muted">No online orders found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if request.user.is_staff %}
+<div class="c-card mb-4">
+  <div class="c-card-header">
+    <div class="c-card-title"><i class="bi bi-file-earmark-medical"></i> Pending Prescriptions</div>
+    <div class="text-muted small">{{ pending_prescription_count }} pending</div>
+  </div>
+  <div class="c-card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead style="background:#f8fafc;"><tr><th class="px-3 py-2">ID</th><th class="py-2">Customer</th><th class="py-2">Uploaded</th><th class="py-2">Action</th></tr></thead>
+        <tbody>
+          {% for rx in pending_prescriptions %}
+            <tr>
+              <td class="px-3 py-2">#{{ rx.id }}</td>
+              <td class="py-2">{{ rx.customer.user.username }}</td>
+              <td class="py-2">{{ rx.created_at|date:"d M Y H:i" }}</td>
+              <td class="py-2">
+                <form method="post" action="{% url 'online_review_prescription' rx.id %}" class="d-flex gap-2">
+                  {% csrf_token %}
+                  <input type="text" name="review_note" class="form-ph" placeholder="Optional note" style="max-width:220px;">
+                  <button class="btn-ph btn-ph-accent" name="action" value="approved" type="submit">Approve</button>
+                  <button class="btn-ph btn-ph-outline" name="action" value="rejected" type="submit">Reject</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-center py-4 text-muted">No pending prescriptions.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
