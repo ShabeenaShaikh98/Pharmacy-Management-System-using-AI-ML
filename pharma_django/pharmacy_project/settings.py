@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "pharmacy_app",
+    "pharma_django.pharmacy_app",
     "ml_engine",
 ]
 
