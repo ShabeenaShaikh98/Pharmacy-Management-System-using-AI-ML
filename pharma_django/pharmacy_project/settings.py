@@ -25,11 +25,11 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-change-me")
 DEBUG = env_bool("DEBUG", default=True)
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
-    if host.strip()
-]
+ALLOWED_HOSTS = ["*"]
+#     host.strip()
+#     for host in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
+#     if host.strip()
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
