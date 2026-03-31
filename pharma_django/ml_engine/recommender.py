@@ -64,7 +64,7 @@ class MedicineRecommender:
     def _load_medicines(self):
         """Load medicines from database as DataFrame"""
         try:
-            from pharmacy_app.models import Medicine
+            from pharma_django.pharmacy_app.models import Medicine
             meds = Medicine.objects.select_related('generic_name', 'presentation', 'supplier').all()
             if not meds.exists():
                 return pd.DataFrame()
@@ -212,7 +212,7 @@ class MedicineRecommender:
         suggest in-stock alternatives with similar generic/presentation.
         """
         try:
-            from pharmacy_app.models import Medicine
+            from pharma_django.pharmacy_app.models import Medicine
             source = Medicine.objects.select_related('generic_name', 'presentation').get(pk=medicine_id)
             query = f"{source.name} {source.generic_name.name if source.generic_name else ''}"
             results = self.recommend(query, n=n + 1)

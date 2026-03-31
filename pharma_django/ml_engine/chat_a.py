@@ -75,7 +75,7 @@ class PharmacyAI:
     # ─────────────────────────────────────────
 
     def _handle_out_of_stock(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         qs = Medicine.objects.filter(quantity=0).select_related('generic_name', 'presentation')
         if not qs.exists():
             return "✅ Great news! All medicines are currently in stock. No shortages detected."
@@ -91,7 +91,7 @@ class PharmacyAI:
         return "\n".join(lines)
 
     def _handle_low_stock(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         qs = Medicine.objects.filter(quantity__gt=0, quantity__lt=20).order_by('quantity')
         if not qs.exists():
             return "✅ No medicines are running critically low right now."
@@ -108,7 +108,7 @@ class PharmacyAI:
         return "\n".join(lines)
 
     def _handle_expiry(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         today = datetime.date.today()
         soon = today + datetime.timedelta(days=90)
 
@@ -140,7 +140,7 @@ class PharmacyAI:
         return "\n".join(lines)
 
     def _handle_top_selling(self):
-        from pharmacy_app.models import SaleItem
+        from pharma_django.pharmacy_app.models import SaleItem
         from django.db.models import Sum, Count
         top = (
             SaleItem.objects
@@ -160,7 +160,7 @@ class PharmacyAI:
         return "\n".join(lines)
 
     def _handle_inventory_summary(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         from django.db.models import Sum, Avg
         today = datetime.date.today()
         stats = Medicine.objects.aggregate(
@@ -192,7 +192,7 @@ class PharmacyAI:
 📎 Use _'out of stock'_, _'expiry alert'_, or _'low stock'_ for detailed lists."""
 
     def _handle_today_sales(self):
-        from pharmacy_app.models import Sale, SaleItem
+        from pharma_django.pharmacy_app.models import Sale, SaleItem
         today = datetime.date.today()
         sales = Sale.objects.filter(sale_date__date=today)
         agg = sales.aggregate(revenue=Sum('sub_total'), count=Count('id'))
@@ -215,7 +215,7 @@ class PharmacyAI:
         return "\n".join(lines)
 
     def _handle_monthly_sales(self):
-        from pharmacy_app.models import Sale
+        from pharma_django.pharmacy_app.models import Sale
         today = datetime.date.today()
         month_start = today.replace(day=1)
         agg = Sale.objects.filter(sale_date__date__gte=month_start).aggregate(
@@ -226,14 +226,14 @@ class PharmacyAI:
                 f"• Total Revenue: **₹{float(agg['revenue'] or 0):,.2f}**")
 
     def _handle_total_sales(self):
-        from pharmacy_app.models import Sale
+        from pharma_django.pharmacy_app.models import Sale
         agg = Sale.objects.aggregate(revenue=Sum('sub_total'), count=Count('id'))
         return (f"📊 **All-Time Sales Summary**\n\n"
                 f"• Total Transactions: **{agg['count'] or 0}**\n"
                 f"• Total Revenue: **₹{float(agg['revenue'] or 0):,.2f}**")
 
     def _handle_supplier_query(self, msg):
-        from pharmacy_app.models import Supplier
+        from pharma_django.pharmacy_app.models import Supplier
         qs = Supplier.objects.all()
         if not qs.exists():
             return "No suppliers found in the system."
@@ -251,7 +251,7 @@ class PharmacyAI:
         if not clean:
             return "Please tell me what medicine or symptom you need a recommendation for.\nExample: _'recommend fever medicine'_ or _'alternative for paracetamol'_"
 
-        from ml_engine.recommender import MedicineRecommender
+        from pharma_django.ml_engine.recommender import MedicineRecommender
         rec = MedicineRecommender()
         results = rec.recommend(clean, n=5)
         if not results:
@@ -267,7 +267,7 @@ class PharmacyAI:
         return "\n".join(lines)
 
     def _handle_price_query(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         # Extract medicine name
         clean = re.sub(r'\b(price|cost|how much|rate|of|for|is|the)\b', '', msg, flags=re.IGNORECASE).strip()
         if not clean:
@@ -288,7 +288,7 @@ class PharmacyAI:
         return self._handle_generic_search(clean)
 
     def _handle_generic_search(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         if len(msg) < 2:
             return self._handle_help()
 

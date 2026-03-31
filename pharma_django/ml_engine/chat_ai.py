@@ -446,7 +446,7 @@ class PharmacyAI:
     # ──────────────────────────────────────────────────────────────
 
     def _handle_out_of_stock(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         qs = Medicine.objects.filter(quantity=0).select_related('generic_name', 'presentation')
 
         if not qs.exists():
@@ -493,7 +493,7 @@ class PharmacyAI:
     # ─────────────────────────────────────────
 
     def _handle_low_stock(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         qs    = Medicine.objects.filter(quantity__gt=0, quantity__lt=20).order_by('quantity')
         today = datetime.date.today()
 
@@ -543,7 +543,7 @@ class PharmacyAI:
     # ─────────────────────────────────────────
 
     def _handle_expiry(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         today = datetime.date.today()
 
         expired     = Medicine.objects.filter(expire_date__lt=today)
@@ -618,7 +618,7 @@ class PharmacyAI:
     # ─────────────────────────────────────────
 
     def _handle_top_selling(self):
-        from pharmacy_app.models import SaleItem
+        from pharma_django.pharmacy_app.models import SaleItem
         top = (
             SaleItem.objects
             .values('medicine__name', 'medicine__id')
@@ -654,7 +654,7 @@ class PharmacyAI:
     # ─────────────────────────────────────────
 
     def _handle_inventory_summary(self):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         today = datetime.date.today()
         stats = Medicine.objects.aggregate(
             total=Count('id'),
@@ -751,7 +751,7 @@ class PharmacyAI:
         return templates.get(self.lang, templates['en'])
 
     def _handle_overview_summary(self):
-        from pharmacy_app.models import Medicine, Sale, Supplier
+        from pharma_django.pharmacy_app.models import Medicine, Sale, Supplier
 
         today = datetime.date.today()
         month_start = today.replace(day=1)
@@ -848,7 +848,7 @@ Pudhe vichara:
     # ─────────────────────────────────────────
 
     def _handle_today_sales(self):
-        from pharmacy_app.models import Sale, SaleItem
+        from pharma_django.pharmacy_app.models import Sale, SaleItem
         today   = datetime.date.today()
         agg     = Sale.objects.filter(sale_date__date=today).aggregate(
             revenue=Sum('sub_total'), count=Count('id')
@@ -889,7 +889,7 @@ Pudhe vichara:
     # ─────────────────────────────────────────
 
     def _handle_monthly_sales(self):
-        from pharmacy_app.models import Sale
+        from pharma_django.pharmacy_app.models import Sale
         today = datetime.date.today()
         agg   = Sale.objects.filter(
             sale_date__date__gte=today.replace(day=1)
@@ -910,7 +910,7 @@ Pudhe vichara:
     # ─────────────────────────────────────────
 
     def _handle_total_sales(self):
-        from pharmacy_app.models import Sale
+        from pharma_django.pharmacy_app.models import Sale
         agg = Sale.objects.aggregate(revenue=Sum('sub_total'), count=Count('id'))
 
         header = self._t(
@@ -929,7 +929,7 @@ Pudhe vichara:
     # ─────────────────────────────────────────
 
     def _handle_supplier_query(self, msg):
-        from pharmacy_app.models import Supplier
+        from pharma_django.pharmacy_app.models import Supplier
         qs = Supplier.objects.all()
 
         if not qs.exists():
@@ -976,7 +976,7 @@ Pudhe vichara:
                 "Aushadhache nav kiva lakshan sanga.\nExample: _'tapachi aushadh suchava'_",
             )
 
-        from ml_engine.recommender import MedicineRecommender
+        from pharma_django.ml_engine.recommender import MedicineRecommender
         results = MedicineRecommender().recommend(clean, n=8)
 
         if not results:
@@ -1010,7 +1010,7 @@ Pudhe vichara:
     # ─────────────────────────────────────────
 
     def _handle_price_query(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         strip_re = (
             r'\b(price|cost|how much|rate|of|for|is|the|pricing|'
             r'कीमत|दाम|कितना|मूल्य|रेट|भाव|की|का|'
@@ -1074,7 +1074,7 @@ Pudhe vichara:
     # ─────────────────────────────────────────
 
     def _handle_generic_search(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         if len(msg) < 2:
             return self._handle_help()
 
@@ -1346,7 +1346,7 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         return icon, stock_text + expiry_text
 
     def _fuzzy_medicine_matches(self, text: str, limit: int = 6):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         query = (text or '').strip().lower()
         if not query:
             return []
@@ -1391,7 +1391,7 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         return ranked
 
     def _substitute_suggestions(self, medicine, limit: int = 4):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         if not medicine.generic_name_id:
             return []
         qs = Medicine.objects.filter(
@@ -1403,7 +1403,7 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         return list(qs[:limit])
 
     def _handle_autosuggest(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         query = self._extract_search_text(msg)
         if not query:
             return self._t(
@@ -1465,7 +1465,7 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         )
 
     def _handle_online_order_support(self, msg):
-        from pharmacy_app.models import OnlineOrder, CustomerProfile
+        from pharma_django.pharmacy_app.models import OnlineOrder, CustomerProfile
         text = msg.lower()
         status_map = {
             'pending': 'pending',
@@ -1517,8 +1517,8 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         return "\n".join(lines)
 
     def _handle_recommendation(self, msg):
-        from pharmacy_app.models import Medicine
-        from ml_engine.recommender import MedicineRecommender
+        from pharma_django.pharmacy_app.models import Medicine
+        from pharma_django.ml_engine.recommender import MedicineRecommender
 
         cleaned = self._extract_search_text(msg)
         if not cleaned:
@@ -1563,7 +1563,7 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         return "\n".join(lines)
 
     def _handle_price_query(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
 
         cleaned = self._extract_search_text(msg)
         if not cleaned:
@@ -1598,7 +1598,7 @@ _Naisargik Marathit kiva Roman madhe vicharaa — mi samajto!_ 🌟""",
         return "\n".join(lines)
 
     def _handle_generic_search(self, msg):
-        from pharmacy_app.models import Medicine
+        from pharma_django.pharmacy_app.models import Medicine
         cleaned = self._extract_search_text(msg)
         if not cleaned:
             return self._handle_help()
