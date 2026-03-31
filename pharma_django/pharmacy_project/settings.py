@@ -39,8 +39,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "pharma_django.pharmacy_app",
-    "pharma_django.ml_engine",
+    "pharmacy_app",
+    "ml_engine",
 ]
 
 MIDDLEWARE = [
@@ -53,7 +53,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "pharma_django.pharmacy_project.urls"
+ROOT_URLCONF = "pharmacy_project.urls"
 
 TEMPLATES = [
     {
@@ -71,7 +71,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "pharma_django.pharmacy_project.wsgi.application"
+WSGI_APPLICATION = "pharmacy_project.wsgi.application"
 
 DATABASES = {
     "default": {
