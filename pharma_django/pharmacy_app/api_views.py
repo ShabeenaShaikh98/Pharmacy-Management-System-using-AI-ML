@@ -24,7 +24,8 @@ from .serializers import (
     SaleSerializer, SaleCreateSerializer,
     ChatMessageSerializer, OCRPrescriptionSerializer
 )
-from ml_engine.chat_ai import PharmacyAI
+# from ml_engine.chat_ai import PharmacyAI
+from pharma_django.ml_engine.chat_ai import PharmacyAI
 from ml_engine.recommender import MedicineRecommender
 from ml_engine.ocr_engine import extract_prescription_text
 
