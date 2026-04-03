@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from pharma_django.pharmacy_app.models import (
+from pharmacy_app.models import (
     GenericName,
     Medicine,
     MedicinePresentation,

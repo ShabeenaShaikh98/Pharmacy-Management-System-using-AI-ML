@@ -24,9 +24,9 @@ from .serializers import (
     SaleSerializer, SaleCreateSerializer,
     ChatMessageSerializer, OCRPrescriptionSerializer
 )
-from pharma_django.ml_engine.chat_ai import PharmacyAI
-from pharma_django.ml_engine.recommender import MedicineRecommender
-from pharma_django.ml_engine.ocr import extract_prescription_text
+from ml_engine.chat_ai import PharmacyAI
+from ml_engine.recommender import MedicineRecommender
+from ml_engine.ocr import extract_prescription_text
 
 # ─────────────────────────────────────────────
 # GENERIC NAMES API
