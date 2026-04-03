@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.env
+pharma_django/.env
+
+pharma_django/db.sqlite3
+pharma_django/staticfiles/
+pharma_django/media/

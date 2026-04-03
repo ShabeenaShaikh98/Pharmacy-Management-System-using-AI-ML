@@ -1,5 +1,6 @@
 """Django settings for the pharmacy management system."""
 
+import os
 from pathlib import Path
 
 from decouple import config
@@ -24,11 +25,12 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 SECRET_KEY = config("SECRET_KEY", default="django-insecure-change-me")
-DEBUG = env_bool("DEBUG", default=True)
-ALLOWED_HOSTS = ["*"]
-#     host.strip()
-#     for host in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
-#     if host.strip()
+DEBUG = env_bool("DEBUG", default=False)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in config("ALLOWED_HOSTS", default=".onrender.com,localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
 
 INSTALLED_APPS = [
@@ -47,6 +49,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -75,16 +78,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "pharmacy_project.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default="pharmacy_db"),
-        "USER": config("DB_USER", default="postgres"),
-        "PASSWORD": config("DB_PASSWORD", default="postgres"),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="5432"),
+DB_ENGINE = config("DB_ENGINE", default="sqlite").strip().lower()
+if DB_ENGINE in {"postgres", "postgresql"}:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("DB_NAME", default="pharmacy_db"),
+            "USER": config("DB_USER", default="postgres"),
+            "PASSWORD": config("DB_PASSWORD", default="postgres"),
+            "HOST": config("DB_HOST", default="localhost"),
+            "PORT": config("DB_PORT", default="5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -100,7 +112,8 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -133,3 +146,6 @@ except Exception:
     pass
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
