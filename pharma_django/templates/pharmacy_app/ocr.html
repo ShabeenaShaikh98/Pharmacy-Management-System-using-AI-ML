@@ -10,7 +10,7 @@
 
 <div class="row g-3 mb-4">
   <!-- Upload Panel -->
-  <div class="col-xl-5">
+  <div class="col-xl-12">
     <div class="c-card h-100">
       <div class="c-card-header"><div class="c-card-title"><i class="bi bi-upload"></i> Upload Prescription</div></div>
       <div class="c-card-body">
@@ -34,29 +34,25 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Results Panel -->
-  <div class="col-xl-7">
-    <div class="c-card h-100">
-      <div class="c-card-header"><div class="c-card-title"><i class="bi bi-list-check"></i> Extracted Medicines</div></div>
-      <div class="c-card-body">
-        <div id="ocr-loading" style="display:none;text-align:center;padding:40px;">
-          <div class="spinner-border text-primary mb-3" style="width:40px;height:40px;"></div>
-          <p class="text-muted">AI is analyzing prescription...</p>
-        </div>
-        <div id="ocr-placeholder" style="text-align:center;padding:40px;color:var(--c-muted);">
-          <i class="bi bi-file-text" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
-          <p>Upload a prescription image or paste text to extract medicine names</p>
-        </div>
-        <div id="ocr-results" style="display:none;">
-          <div id="extracted-medicines" class="mb-4"></div>
-          <hr style="border-color:var(--c-border);">
-          <div style="font-weight:700;font-size:14px;color:var(--c-text);margin-bottom:12px;">
-            <i class="bi bi-stars" style="color:var(--c-accent);"></i> ML Recommended Alternatives
-          </div>
-          <div id="ocr-recommendations" class="row g-2"></div>
-        </div>
+<div id="ocr-loading" style="display:none;text-align:center;padding:40px;" class="c-card mb-4">
+  <div class="c-card-body">
+    <div class="spinner-border text-primary mb-3" style="width:40px;height:40px;"></div>
+    <p class="text-muted mb-0">AI is analyzing prescription...</p>
+  </div>
+</div>
+
+<div id="ocr-results-card" class="c-card mb-4" style="display:none;">
+  <div class="c-card-header"><div class="c-card-title"><i class="bi bi-list-check"></i> Extracted Medicines</div></div>
+  <div class="c-card-body">
+    <div id="ocr-results">
+      <div id="extracted-medicines" class="mb-4"></div>
+      <hr style="border-color:var(--c-border);">
+      <div style="font-weight:700;font-size:14px;color:var(--c-text);margin-bottom:12px;">
+        <i class="bi bi-stars" style="color:var(--c-accent);"></i> ML Recommended Alternatives
       </div>
+      <div id="ocr-recommendations" class="row g-2"></div>
     </div>
   </div>
 </div>
@@ -131,8 +127,7 @@ document.getElementById('btn-process-ocr').addEventListener('click',async()=>{
   if(!text&&!imageFile){showToast('Please upload an image or enter prescription text','warning');return;}
 
   document.getElementById('ocr-loading').style.display='block';
-  document.getElementById('ocr-placeholder').style.display='none';
-  document.getElementById('ocr-results').style.display='none';
+  document.getElementById('ocr-results-card').style.display='none';
 
   const formData=new FormData();
   if(text)formData.append('text',text);
@@ -150,20 +145,51 @@ document.getElementById('btn-process-ocr').addEventListener('click',async()=>{
 });
 
 function renderOCRResults(data){
-  document.getElementById('ocr-results').style.display='block';
+  document.getElementById('ocr-results-card').style.display='block';
   const extracted=data.extracted_medicines||[];
+  const matched=data.matched_medicines||[];
   const recs=data.recommendations||[];
 
-  if(extracted.length>0){
+  if(matched.length>0){
     document.getElementById('extracted-medicines').innerHTML=`
       <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--c-text);">
-        <i class="bi bi-list-check" style="color:var(--c-accent);"></i> Extracted Medicines (${extracted.length} found)
+        <i class="bi bi-list-check" style="color:var(--c-accent);"></i> Medicines Found In Prescription (${matched.length} found)
+      </div>
+      <div class="row g-2">
+        ${matched.map(m=>`
+          <div class="col-md-6">
+            <div style="padding:12px;background:#f8fafc;border-radius:10px;border:1px solid var(--c-border);height:100%;">
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+                <div>
+                  <div style="font-weight:700;font-size:13px;color:var(--c-primary);">💊 ${m.name}</div>
+                  <div style="font-size:11.5px;color:var(--c-muted);">${m.generic_name||'No generic'} ${m.presentation?`• ${m.presentation}`:''}</div>
+                  ${m.inventory_name && m.inventory_name !== m.name ? `<div style="font-size:11px;color:var(--c-muted);margin-top:4px;">Inventory match: <strong>${m.inventory_name}</strong></div>` : ''}
+                </div>
+                <span style="background:${m.match_type==='exact'?'rgba(16,185,129,.12)':'rgba(245,158,11,.12)'};color:${m.match_type==='exact'?'var(--c-success)':'var(--c-warning)'};padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;">
+                  ${m.match_type==='exact'?'EXACT':m.match_type==='generic'?'GENERIC':'CLOSE'}
+                </span>
+              </div>
+              <div style="font-size:11px;color:var(--c-muted);margin-top:8px;">
+                Prescription text: <strong>${m.matched_text}</strong>
+                ${m.score?`• Match ${m.score}%`:''}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }else if(extracted.length>0){
+    document.getElementById('extracted-medicines').innerHTML=`
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:var(--c-text);">
+        <i class="bi bi-list-check" style="color:var(--c-accent);"></i> Raw Extracted Medicine Text (${extracted.length} found)
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">
         ${extracted.map(m=>`<span style="background:rgba(11,61,107,.08);color:var(--c-primary);padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid rgba(11,61,107,.15);">💊 ${m}</span>`).join('')}
+      </div>
+      <div style="font-size:12px;color:var(--c-muted);margin-top:10px;">
+        Exact medicine match was not confident enough, so raw extracted names are shown.
       </div>`;
   }else{
-    document.getElementById('extracted-medicines').innerHTML=`<div class="text-muted">No specific medicine names could be extracted. Check recommendations below.</div>`;
+    document.getElementById('extracted-medicines').innerHTML=`<div class="text-muted">No specific medicine names could be extracted from this prescription.</div>`;
   }
 
   if(recs.length>0){

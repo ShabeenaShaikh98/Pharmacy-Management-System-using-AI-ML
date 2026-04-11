@@ -1,5 +1,6 @@
 """Django settings for the pharmacy management system."""
 
+import importlib.util
 import os
 from pathlib import Path
 
@@ -47,9 +48,15 @@ INSTALLED_APPS = [
     "ml_engine",
 ]
 
+HAS_CLOUDINARY = (
+    importlib.util.find_spec("cloudinary") is not None
+    and importlib.util.find_spec("cloudinary_storage") is not None
+)
+if HAS_CLOUDINARY:
+    INSTALLED_APPS += ["cloudinary", "cloudinary_storage"]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -57,6 +64,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+HAS_WHITENOISE = importlib.util.find_spec("whitenoise") is not None
+if HAS_WHITENOISE:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = "pharmacy_project.urls"
 
@@ -113,7 +124,10 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+if HAS_WHITENOISE:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+else:
+    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -149,3 +163,17 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# File upload size increase
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760   # 10 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760   # 10 MB
+
+# ================= CLOUDINARY CONFIG =================
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME", default="dfjwsye5w"),
+    "API_KEY": config("CLOUDINARY_API_KEY", default="161324573166366"),
+    "API_SECRET": config("CLOUDINARY_API_SECRET", default="PASTE_YOUR_SECRET_HERE"),
+}
+
+if HAS_CLOUDINARY and CLOUDINARY_STORAGE["API_SECRET"]:
+    DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+# ================= END =================

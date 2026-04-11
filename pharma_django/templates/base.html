@@ -762,21 +762,22 @@
     <div class="msg assistant">
       <div class="msg-icon"><i class="bi bi-robot"></i></div>
       <div>
-        <div class="msg-bubble">Hi! I'm <strong>PharmaBot</strong>, your AI pharmacy assistant.<br><br>I can guide complete website workflow: dashboard, inventory, billing, reports, online orders, OCR and recommendations.<br><br>Type <strong>website workflow guide</strong> or <strong>help</strong>.</div>
+        <div class="msg-bubble">Hi! I'm <strong>PharmaBot</strong>, your AI pharmacy assistant.<br><br>I can explain the complete website with live answers for users, inventory, billing, reports, online orders, payments, prescriptions, OCR and recommendations.<br><br>Type <strong>website workflow guide</strong>, <strong>system overview</strong>, or <strong>show user summary</strong>.</div>
         <div class="msg-time">Just now</div>
       </div>
     </div>
   </div>
 
   <div class="chat-footer">
-    <div class="chat-helper-text">Ask anything about website workflow, stock, sales, billing, online orders, OCR, or type <strong>website workflow guide</strong>.</div>
+    <div class="chat-helper-text">Ask anything about website workflow, users, stock, sales, billing, online orders, payments, prescriptions, OCR, or type <strong>website workflow guide</strong>.</div>
     <div class="chat-quick">
       <span class="chat-quick-btn" data-msg="website workflow guide">Workflow Guide</span>
       <span class="chat-quick-btn" data-msg="system overview">Overview</span>
+      <span class="chat-quick-btn" data-msg="show user summary">Users</span>
+      <span class="chat-quick-btn" data-msg="show payment summary">Payments</span>
       <span class="chat-quick-btn" data-msg="out of stock">🔴 Out of Stock</span>
-      <span class="chat-quick-btn" data-msg="expiry alert">⏰ Expiry Alert</span>
+      <span class="chat-quick-btn" data-msg="show prescription summary">Prescriptions</span>
       <span class="chat-quick-btn" data-msg="today's sales">💵 Today Sales</span>
-      <span class="chat-quick-btn" data-msg="top selling medicines">📊 Top Selling</span>
       <span class="chat-quick-btn" data-msg="inventory summary">📦 Inventory</span>
     </div>
     <div class="chat-input-wrap">
@@ -932,7 +933,7 @@ function stockBadgeRenderer(params) {
     if (!confirm('Clear chat history?')) return;
     await fetch('/api/chat/', { method:'DELETE', headers:{'X-CSRFToken':CSRF}, credentials:'same-origin' });
     body.innerHTML = '';
-    appendMsg('assistant', 'Chat cleared. Ask for website workflow guide, system overview, stock details, sales, or online order help.');
+    appendMsg('assistant', 'Chat cleared. Ask for website workflow guide, system overview, user summary, payment summary, stock details, sales, or online order help.');
   });
 
   sendBtn.addEventListener('click', () => sendMessage(input.value));
@@ -1010,10 +1011,11 @@ function stockBadgeRenderer(params) {
   renderQuickSuggestions([
     'website workflow guide',
     'system overview',
+    'show user summary',
+    'show payment summary',
     'out of stock',
-    'expiry alert',
+    'show prescription summary',
     "today's sales",
-    'top selling medicines',
     'inventory summary'
   ]);
 })();

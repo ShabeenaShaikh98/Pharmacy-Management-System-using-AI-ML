@@ -15,7 +15,7 @@ import json
 from .models import (
     Medicine, GenericName, MedicinePresentation, Supplier,
     Purchase, Sale, SaleItem, ChatMessage, OCRPrescription, OnlineOrder,
-    OnlinePrescription
+    OnlinePrescription, OnlinePayment, CustomerProfile
 )
 from .serializers import (
     MedicineSerializer, MedicineListSerializer,
@@ -374,10 +374,27 @@ class ChatAPI(APIView):
     SUPPLIER_KEYWORDS = ['supplier', 'vendor', 'company']
     RECOMMEND_KEYWORDS = ['recommend', 'suggest', 'alternative', 'similar', 'price', 'search', 'find']
     ORDER_KEYWORDS = ['order', 'online order', 'checkout', 'cart', 'delivery', 'pending', 'packed', 'delivered']
+    USER_KEYWORDS = [
+        'user', 'users', 'customer', 'customers', 'staff', 'admin', 'super admin',
+        'roles', 'role', 'signup', 'login', 'registered users', 'customer count',
+    ]
+    PAYMENT_KEYWORDS = [
+        'payment', 'payments', 'refund', 'refunds', 'paid', 'failed payment',
+        'cod', 'upi', 'card', 'gateway',
+    ]
+    PRESCRIPTION_KEYWORDS = [
+        'prescription', 'prescriptions', 'rx', 'ocr', 'upload prescription',
+        'approved prescription', 'pending prescription', 'rejected prescription',
+    ]
+    AI_TOOL_KEYWORDS = [
+        'ai', 'ml', 'chatbot', 'chat bot', 'recommender', 'recommendation engine',
+        'ocr tool', 'smart search',
+    ]
     WORKFLOW_KEYWORDS = [
         'website', 'whole website', 'full website', 'all modules', 'all work', 'all workflow',
         'workflow', 'guide', 'how to', 'how to use', 'how to work', 'process', 'module',
         'poora website', 'sab kaam', 'kaise karu', 'kese karu', 'system guide',
+        'pure website', 'poori website', 'sab kuch', 'everything about website',
     ]
 
     def _has_keyword(self, message, keywords):
@@ -388,8 +405,10 @@ class ChatAPI(APIView):
         base = [
             'Website workflow guide',
             'Show out of stock medicines',
+            'Show user summary',
             'Give me expiry alerts',
             "Show today's sales",
+            'Show payment summary',
             'Search Crocin',
             'Recommend fever medicine',
             'Show online order status',
@@ -406,6 +425,14 @@ class ChatAPI(APIView):
             return ['Show monthly sales', 'Show total sales', 'Top selling medicines', 'Recent invoices']
         if self._has_keyword(lowered, self.STOCK_KEYWORDS):
             return ['Low stock medicines', 'Expired medicines', 'Inventory summary', 'Search Paracetamol']
+        if self._has_keyword(lowered, self.USER_KEYWORDS):
+            return ['Show role summary', 'Show recent users', 'Show customer count', 'Show admin count']
+        if self._has_keyword(lowered, self.PAYMENT_KEYWORDS):
+            return ['Show paid payments', 'Show refund summary', 'Show COD orders', 'Show failed payments']
+        if self._has_keyword(lowered, self.PRESCRIPTION_KEYWORDS):
+            return ['Show pending prescriptions', 'Show approved prescriptions', 'How prescription approval works', 'Show OCR records']
+        if self._has_keyword(lowered, self.AI_TOOL_KEYWORDS):
+            return ['Show AI tools summary', 'How OCR works', 'How recommender works', 'How chatbot works']
         if self._has_keyword(lowered, self.RECOMMEND_KEYWORDS):
             return ['Price of Crocin', 'Alternative for Ibuprofen', 'Search Dolo', 'Show suppliers']
         if self._has_keyword(lowered, self.ORDER_KEYWORDS):
@@ -429,7 +456,195 @@ class ChatAPI(APIView):
             "- `today sales summary`\n"
             "- `show pending online orders`\n"
             "- `how to import medicines from excel`\n"
+            "- `show user summary`\n"
+            "- `show payment summary`\n"
+            "- `show prescription summary`\n"
             "- `price of dolo`\n"
+        )
+
+    def _build_user_context(self):
+        recent_users = User.objects.order_by('-date_joined')[:8]
+        return {
+            'title': 'User and role summary',
+            'summary_cards': [
+                {'label': 'Total Users', 'value': User.objects.count(), 'tone': 'info'},
+                {'label': 'Super Admin', 'value': User.objects.filter(is_superuser=True, is_staff=True).count(), 'tone': 'info'},
+                {'label': 'Admin Staff', 'value': User.objects.filter(is_staff=True, is_superuser=False).count(), 'tone': 'info'},
+                {'label': 'Customers', 'value': User.objects.filter(is_staff=False, is_superuser=False).count(), 'tone': 'success'},
+                {'label': 'Profiles', 'value': CustomerProfile.objects.count(), 'tone': 'info'},
+            ],
+            'items': [
+                {
+                    'title': user.username,
+                    'meta': (
+                        'Super Admin' if user.is_superuser else
+                        'Admin Staff' if user.is_staff else
+                        'Customer'
+                    ) + f" | Joined {user.date_joined:%d %b %Y}",
+                    'kind': 'info',
+                }
+                for user in recent_users
+            ],
+        }
+
+    def _build_payment_context(self):
+        payments = OnlinePayment.objects.select_related('order').order_by('-created_at')[:8]
+        return {
+            'title': 'Payment summary',
+            'summary_cards': [
+                {'label': 'Payments', 'value': OnlinePayment.objects.count(), 'tone': 'info'},
+                {'label': 'Paid', 'value': OnlinePayment.objects.filter(status='paid').count(), 'tone': 'success'},
+                {'label': 'Pending', 'value': OnlinePayment.objects.filter(status='pending').count(), 'tone': 'warning'},
+                {'label': 'Failed', 'value': OnlinePayment.objects.filter(status='failed').count(), 'tone': 'danger'},
+                {'label': 'Refunded', 'value': OnlinePayment.objects.filter(refund_status='processed').count(), 'tone': 'info'},
+            ],
+            'items': [
+                {
+                    'title': payment.order.order_id,
+                    'meta': f"{payment.method.upper()} | {payment.status.upper()} | Rs. {payment.amount}",
+                    'kind': 'success' if payment.status == 'paid' else 'danger' if payment.status == 'failed' else 'warning',
+                }
+                for payment in payments
+            ],
+        }
+
+    def _build_prescription_context(self):
+        prescriptions = OnlinePrescription.objects.select_related('customer__user', 'reviewed_by').order_by('-created_at')[:8]
+        return {
+            'title': 'Prescription and OCR summary',
+            'summary_cards': [
+                {'label': 'Online RX', 'value': OnlinePrescription.objects.count(), 'tone': 'info'},
+                {'label': 'Pending RX', 'value': OnlinePrescription.objects.filter(status='pending').count(), 'tone': 'warning'},
+                {'label': 'Approved RX', 'value': OnlinePrescription.objects.filter(status='approved').count(), 'tone': 'success'},
+                {'label': 'Rejected RX', 'value': OnlinePrescription.objects.filter(status='rejected').count(), 'tone': 'danger'},
+                {'label': 'OCR Records', 'value': OCRPrescription.objects.count(), 'tone': 'info'},
+            ],
+            'items': [
+                {
+                    'title': f"RX #{prescription.id} - {prescription.customer.user.username}",
+                    'meta': f"{prescription.status.title()} | {prescription.created_at:%d %b %Y %I:%M %p}",
+                    'kind': 'success' if prescription.status == 'approved' else 'danger' if prescription.status == 'rejected' else 'warning',
+                }
+                for prescription in prescriptions
+            ],
+        }
+
+    def _build_ai_tools_context(self):
+        return {
+            'title': 'AI and ML tools',
+            'summary_cards': [
+                {'label': 'Chat History', 'value': ChatMessage.objects.count(), 'tone': 'info'},
+                {'label': 'OCR Records', 'value': OCRPrescription.objects.count(), 'tone': 'info'},
+                {'label': 'Medicines', 'value': Medicine.objects.count(), 'tone': 'info'},
+            ],
+            'items': [
+                {'title': 'PharmaBot', 'meta': 'Rule-based multilingual assistant connected to live database data', 'kind': 'info'},
+                {'title': 'OCR Prescription', 'meta': 'Uses pytesseract to extract text from prescription images', 'kind': 'warning'},
+                {'title': 'ML Recommender', 'meta': 'Uses TF-IDF + KNN similarity for medicine recommendations', 'kind': 'success'},
+                {'title': 'Smart Search', 'meta': 'Supports medicine, generic, symptom, and related-name discovery', 'kind': 'info'},
+            ],
+        }
+
+    def _build_admin_master_response(self):
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        today_sales = float(Sale.objects.filter(sale_date__date=today).aggregate(total=Sum('sub_total'))['total'] or 0)
+        month_sales = float(Sale.objects.filter(sale_date__date__gte=month_start).aggregate(total=Sum('sub_total'))['total'] or 0)
+        online_revenue = float(
+            OnlineOrder.objects.filter(
+                status__in=['approved', 'packed', 'out_for_delivery', 'delivered']
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+        return (
+            "Here is the complete live website summary for Super Admin:\n\n"
+            f"1) Users: {User.objects.count()} total users, "
+            f"{User.objects.filter(is_superuser=True, is_staff=True).count()} super admin, "
+            f"{User.objects.filter(is_staff=True, is_superuser=False).count()} admin staff, "
+            f"{User.objects.filter(is_staff=False, is_superuser=False).count()} customers.\n"
+            f"2) Inventory: {Medicine.objects.count()} medicines, "
+            f"{Medicine.objects.filter(quantity=0).count()} out of stock, "
+            f"{Medicine.objects.filter(quantity__gt=0, quantity__lt=20).count()} low stock, "
+            f"{Medicine.objects.filter(expire_date__lt=today).count()} expired.\n"
+            f"3) Sales: today's sales Rs. {today_sales:.2f}, this month Rs. {month_sales:.2f}, "
+            f"total invoices {Sale.objects.count()}.\n"
+            f"4) Online store: {OnlineOrder.objects.count()} orders, "
+            f"{OnlineOrder.objects.filter(status='pending').count()} pending, "
+            f"{OnlineOrder.objects.filter(status='delivered').count()} delivered, "
+            f"online revenue Rs. {online_revenue:.2f}.\n"
+            f"5) Prescriptions: {OnlinePrescription.objects.count()} uploaded, "
+            f"{OnlinePrescription.objects.filter(status='pending').count()} pending review.\n"
+            f"6) Payments: {OnlinePayment.objects.count()} records, "
+            f"{OnlinePayment.objects.filter(status='paid').count()} paid, "
+            f"{OnlinePayment.objects.filter(status='failed').count()} failed, "
+            f"{OnlinePayment.objects.filter(refund_status='processed').count()} refunded.\n"
+            f"7) AI tools: {OCRPrescription.objects.count()} OCR records and chatbot support are active.\n\n"
+            "You can ask me module-wise questions like:\n"
+            "- show user summary\n"
+            "- show payment summary\n"
+            "- show prescription summary\n"
+            "- show online order status\n"
+            "- show inventory summary\n"
+            "- how OCR works\n"
+            "- how recommender works"
+        )
+
+    def _build_user_response(self):
+        recent_users = User.objects.order_by('-date_joined')[:5]
+        lines = [
+            "Here is the live user summary:",
+            f"- Total users: {User.objects.count()}",
+            f"- Super admin: {User.objects.filter(is_superuser=True, is_staff=True).count()}",
+            f"- Admin staff: {User.objects.filter(is_staff=True, is_superuser=False).count()}",
+            f"- Customers: {User.objects.filter(is_staff=False, is_superuser=False).count()}",
+        ]
+        if recent_users:
+            lines.append("- Recent users:")
+            for user in recent_users:
+                role = 'Super Admin' if user.is_superuser else 'Admin Staff' if user.is_staff else 'Customer'
+                lines.append(f"  {user.username} | {role} | joined {user.date_joined:%d %b %Y}")
+        return "\n".join(lines)
+
+    def _build_payment_response(self):
+        lines = [
+            "Here is the live payment summary:",
+            f"- Total payment records: {OnlinePayment.objects.count()}",
+            f"- Paid: {OnlinePayment.objects.filter(status='paid').count()}",
+            f"- Pending: {OnlinePayment.objects.filter(status='pending').count()}",
+            f"- Failed: {OnlinePayment.objects.filter(status='failed').count()}",
+            f"- Refund processed: {OnlinePayment.objects.filter(refund_status='processed').count()}",
+            f"- COD payments: {OnlinePayment.objects.filter(method='cod').count()}",
+            f"- UPI payments: {OnlinePayment.objects.filter(method='upi').count()}",
+            f"- Card payments: {OnlinePayment.objects.filter(method='card').count()}",
+        ]
+        return "\n".join(lines)
+
+    def _build_prescription_response(self):
+        return (
+            "Here is the prescription and OCR summary:\n"
+            f"- Online prescriptions: {OnlinePrescription.objects.count()}\n"
+            f"- Pending review: {OnlinePrescription.objects.filter(status='pending').count()}\n"
+            f"- Approved: {OnlinePrescription.objects.filter(status='approved').count()}\n"
+            f"- Rejected: {OnlinePrescription.objects.filter(status='rejected').count()}\n"
+            f"- OCR records: {OCRPrescription.objects.count()}\n\n"
+            "Prescription flow:\n"
+            "1) Customer uploads prescription.\n"
+            "2) Staff reviews and approves or rejects it.\n"
+            "3) Approved prescription can be linked during checkout for Rx medicines.\n"
+            "4) OCR tool can extract text and suggest matching medicines."
+        )
+
+    def _build_ai_tools_response(self):
+        return (
+            "Here is the AI/ML module summary:\n\n"
+            "1) PharmaBot: rule-based multilingual assistant connected to live Django database queries.\n"
+            "2) OCR Prescription: uses pytesseract to extract text from prescription images.\n"
+            "3) ML Recommender: uses TF-IDF plus K-Nearest Neighbors to suggest similar medicines.\n"
+            "4) Smart search: helps find medicines using name, generic, symptom, or related terms.\n\n"
+            "You can ask:\n"
+            "- how OCR works\n"
+            "- how recommender works\n"
+            "- show prescription summary\n"
+            "- search crocin"
         )
 
     def _build_online_order_context(self):
@@ -644,6 +859,14 @@ class ChatAPI(APIView):
         lowered = message.lower()
         if self._has_keyword(lowered, self.WORKFLOW_KEYWORDS):
             return self._build_workflow_context()
+        if self._has_keyword(lowered, self.USER_KEYWORDS):
+            return self._build_user_context()
+        if self._has_keyword(lowered, self.PAYMENT_KEYWORDS):
+            return self._build_payment_context()
+        if self._has_keyword(lowered, self.PRESCRIPTION_KEYWORDS):
+            return self._build_prescription_context()
+        if self._has_keyword(lowered, self.AI_TOOL_KEYWORDS):
+            return self._build_ai_tools_context()
         if self._has_keyword(lowered, self.OVERVIEW_KEYWORDS):
             return self._build_overview_context()
         if self._has_keyword(lowered, self.STOCK_KEYWORDS):
@@ -658,15 +881,24 @@ class ChatAPI(APIView):
             return self._build_search_context(message)
         return self._build_search_context(message)
 
+    def _should_include_rich_context(self, message):
+        lowered = message.lower()
+        detailed_keywords = [
+            'overview', 'summary', 'full', 'whole website', 'full website', 'pure website',
+            'poori website', 'workflow', 'guide', 'all details', 'everything', 'sab kuch',
+            'system status', 'dashboard summary', 'details',
+        ]
+        return any(keyword in lowered for keyword in detailed_keywords)
+
     def get(self, request):
         history = list(ChatMessage.objects.filter(user=request.user).order_by('-created_at')[:30])
         history.reverse()
         return Response({
             'history': ChatMessageSerializer(history, many=True).data,
             'welcome_message': (
-                "Hi! I can guide your full website workflow: dashboard, medicines, inventory, "
-                "excel import/export, billing, reports, online orders, OCR and recommendations. "
-                "Type 'website workflow guide' or ask for 'system overview'."
+                "Hi! I can guide the full website with live answers for dashboard, users, inventory, "
+                "billing, reports, online orders, payments, prescriptions, OCR and recommendations. "
+                "Type 'website workflow guide', 'system overview', or 'show user summary'."
             ),
             'suggestions': self._build_suggestions(),
         })
@@ -683,10 +915,23 @@ class ChatAPI(APIView):
         lowered = message.lower()
         if self._has_keyword(lowered, self.WORKFLOW_KEYWORDS):
             response_text = self._build_workflow_guide_response()
+        elif (
+            'full website' in lowered or 'whole website' in lowered or 'pure website' in lowered
+            or 'poori website' in lowered or 'sab kuch' in lowered or 'everything' in lowered
+        ):
+            response_text = self._build_admin_master_response()
+        elif self._has_keyword(lowered, self.USER_KEYWORDS):
+            response_text = self._build_user_response()
+        elif self._has_keyword(lowered, self.PAYMENT_KEYWORDS):
+            response_text = self._build_payment_response()
+        elif self._has_keyword(lowered, self.PRESCRIPTION_KEYWORDS):
+            response_text = self._build_prescription_response()
+        elif self._has_keyword(lowered, self.AI_TOOL_KEYWORDS):
+            response_text = self._build_ai_tools_response()
         else:
             ai = PharmacyAI(request.user)
             response_text = ai.respond(message)
-        context_payload = self._build_context_payload(message)
+        context_payload = self._build_context_payload(message) if self._should_include_rich_context(message) else None
 
         # Save assistant message
         ChatMessage.objects.create(user=request.user, role='assistant', message=response_text)
@@ -745,7 +990,7 @@ class OCRPrescriptionAPI(APIView):
 
         # ML-based medicine extraction from text
         recommender = MedicineRecommender()
-        extracted_medicines, recommendations = recommender.extract_from_prescription(extracted_text)
+        extracted_medicines, matched_medicines, recommendations = recommender.extract_from_prescription(extracted_text)
 
         prescription = OCRPrescription.objects.create(
             image=image,
@@ -758,5 +1003,6 @@ class OCRPrescriptionAPI(APIView):
             'id': prescription.id,
             'extracted_text': extracted_text,
             'extracted_medicines': extracted_medicines,
+            'matched_medicines': matched_medicines,
             'recommendations': recommendations
         })

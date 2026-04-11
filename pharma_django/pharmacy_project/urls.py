@@ -5,7 +5,6 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
     path('', include('pharmacy_app.urls')),
     path('api/', include('pharmacy_app.api_urls')),
     path('api/ml/', include('ml_engine.urls')),

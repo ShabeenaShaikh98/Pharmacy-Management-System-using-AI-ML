@@ -8,6 +8,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler
+from difflib import SequenceMatcher
 
 
 class MedicineRecommender:
@@ -61,6 +62,12 @@ class MedicineRecommender:
         'sleep': ['melatonin', 'clonazepam', 'alprazolam'],
     }
 
+    DOSAGE_PATTERN = re.compile(r'\b\d+\s*(?:mg|ml|mcg|g|iu)\b', re.IGNORECASE)
+    FORM_WORDS = {
+        'tab', 'tablet', 'cap', 'capsule', 'syr', 'syrup', 'inj', 'injection',
+        'oint', 'ointment', 'gel', 'drop', 'drops', 'cream', 'powder',
+    }
+
     def _load_medicines(self):
         """Load medicines from database as DataFrame"""
         try:
@@ -103,6 +110,126 @@ class MedicineRecommender:
             ]).lower()
             corpus.append(text)
         return corpus
+
+    def _normalize_prescription_text(self, text: str) -> str:
+        text = (text or '').lower()
+        text = self.DOSAGE_PATTERN.sub(' ', text)
+        text = re.sub(r'[^a-z0-9\s\-\+]', ' ', text)
+        parts = [part for part in text.split() if part not in self.FORM_WORDS]
+        return ' '.join(parts).strip()
+
+    def _load_catalog(self):
+        try:
+            from pharmacy_app.models import Medicine
+            return list(Medicine.objects.select_related('generic_name', 'presentation').all())
+        except Exception:
+            return []
+
+    def _find_best_catalog_match(self, candidate: str):
+        normalized = self._normalize_prescription_text(candidate)
+        if not normalized:
+            return None
+
+        best_match = None
+        best_score = 0.0
+        for medicine in self._load_catalog():
+            medicine_name = self._normalize_prescription_text(medicine.name)
+            generic_name = self._normalize_prescription_text(getattr(medicine.generic_name, 'name', ''))
+            names_to_check = [('medicine', medicine_name), ('generic', generic_name)]
+            names_to_check = [(kind, name) for kind, name in names_to_check if name]
+            if not names_to_check:
+                continue
+
+            for kind, name in names_to_check:
+                is_demo_name = medicine.name.lower().startswith('pg demo medicine')
+                if normalized == name:
+                    if kind == 'medicine':
+                        return {
+                            'id': medicine.id,
+                            'name': candidate.strip(),
+                            'inventory_name': medicine.name,
+                            'generic_name': medicine.generic_name.name if medicine.generic_name else '',
+                            'presentation': medicine.presentation.name if medicine.presentation else '',
+                            'matched_text': candidate.strip(),
+                            'match_type': 'exact',
+                            'score': 100.0,
+                        }
+                    score = 95.0
+                    if is_demo_name:
+                        score -= 12
+                    if score > best_score:
+                        best_score = score
+                        best_match = {
+                            'id': medicine.id,
+                            'name': candidate.strip(),
+                            'inventory_name': medicine.name,
+                            'generic_name': medicine.generic_name.name if medicine.generic_name else '',
+                            'presentation': medicine.presentation.name if medicine.presentation else '',
+                            'matched_text': candidate.strip(),
+                            'match_type': 'generic',
+                            'score': round(score, 1),
+                        }
+                    continue
+                if normalized in name or name in normalized:
+                    score = 96.0 if len(normalized) >= 4 else 88.0
+                    if kind == 'generic':
+                        score -= 6
+                else:
+                    score = SequenceMatcher(None, normalized, name).ratio() * 100
+                    if kind == 'generic':
+                        score -= 6
+                if is_demo_name:
+                    score -= 12
+
+                if score > best_score:
+                    best_score = score
+                    best_match = {
+                        'id': medicine.id,
+                        'name': candidate.strip(),
+                        'inventory_name': medicine.name,
+                        'generic_name': medicine.generic_name.name if medicine.generic_name else '',
+                        'presentation': medicine.presentation.name if medicine.presentation else '',
+                        'matched_text': candidate.strip(),
+                        'match_type': 'close',
+                        'score': round(score, 1),
+                    }
+
+        if best_match and best_match['score'] >= 72:
+            return best_match
+        return None
+
+    def _extract_candidates_from_lines(self, text: str):
+        candidates = []
+        for raw_line in (text or '').splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            line = re.sub(r'^\s*\d+[\)\.\-]?\s*', '', line)
+            line = re.sub(r'^(?:rx|medicine|medicines)\s*[:\-]?\s*', '', line, flags=re.IGNORECASE)
+            if not line:
+                continue
+
+            direct_match = re.search(
+                r'(?:tab(?:let)?|cap(?:sule)?|syr(?:up)?|inj(?:ection)?|oint(?:ment)?|gel|drops?|cream)\s+([A-Za-z][A-Za-z0-9\-\+ ]{1,60})',
+                line,
+                flags=re.IGNORECASE,
+            )
+            if direct_match:
+                cleaned = direct_match.group(1)
+                cleaned = re.split(r'\s+\-|\s+\(|\s+\d+\-\d+\-\d+|\s+tds|\s+bd|\s+od|\s+hs', cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
+                candidates.append(cleaned.strip())
+                continue
+
+            dosage_match = re.search(r'([A-Za-z][A-Za-z0-9\-\+ ]{1,60})\s+\d+\s*(?:mg|ml|mcg|g|iu)', line, flags=re.IGNORECASE)
+            if dosage_match:
+                candidates.append(dosage_match.group(1).strip())
+                continue
+
+            prefix = re.split(r'\-|\(|,', line, maxsplit=1)[0].strip()
+            if len(prefix.split()) <= 4 and any(ch.isalpha() for ch in prefix):
+                candidates.append(prefix)
+
+        return candidates
 
     def recommend(self, query: str, n: int = 8) -> list:
         """
@@ -169,42 +296,49 @@ class MedicineRecommender:
         Returns (extracted_medicines, recommendations)
         """
         if not text or not text.strip():
-            return [], []
+            return [], [], []
 
-        extracted = set()
+        exact_matches = []
+        extracted_names = []
+        seen_medicine_ids = set()
+        seen_names = set()
 
-        # Pattern 1: Medicine with dosage
-        pattern1 = re.findall(r'\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)\s+\d+\s*(?:mg|ml|mcg|g|IU)', text)
-        extracted.update([p.strip() for p in pattern1 if len(p) > 3])
+        candidates = self._extract_candidates_from_lines(text)
+        for candidate in candidates:
+            match = self._find_best_catalog_match(candidate)
+            if not match:
+                continue
+            if match['id'] in seen_medicine_ids:
+                continue
+            seen_medicine_ids.add(match['id'])
+            exact_matches.append(match)
+            seen_names.add(match['name'].lower())
+            extracted_names.append(match['name'])
 
-        # Pattern 2: Tab/Cap/Syrup prefix
-        pattern2 = re.findall(r'(?:Tab|Cap|Syr|Inj|Oint|Gel|Drops?)\s*\.?\s*([A-Z][a-zA-Z\s]+?)(?:\d|\n|,|\.|$)', text)
-        extracted.update([p.strip() for p in pattern2 if len(p.strip()) > 3])
+        if not exact_matches:
+            fallback_names = []
+            pattern3 = re.findall(r'\b([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{2,})?)\b', text)
+            for word in pattern3:
+                match = self._find_best_catalog_match(word)
+                if not match or match['id'] in seen_medicine_ids:
+                    continue
+                seen_medicine_ids.add(match['id'])
+                exact_matches.append(match)
+                extracted_names.append(match['name'])
+                fallback_names.append(match['name'])
+            if fallback_names:
+                seen_names.update(name.lower() for name in fallback_names)
 
-        # Pattern 3: Capitalized words likely to be medicines
-        pattern3 = re.findall(r'\b([A-Z][a-z]{3,}(?:\s+[A-Z][a-z]{2,})?)\b', text)
-        # Filter by length and common medicine suffixes
-        med_suffixes = ('cin', 'mycin', 'cillin', 'prazole', 'statin', 'sartan', 'olol',
-                        'dipine', 'formin', 'zepam', 'mab', 'nib', 'fenac', 'gesic',
-                        'cef', 'dryl', 'fen', 'sol', 'pen', 'dol')
-        for word in pattern3:
-            if any(word.lower().endswith(s) for s in med_suffixes):
-                extracted.add(word.strip())
-
-        extracted = list(extracted)[:10]
-
-        # Get recommendations for each extracted medicine
         all_recs = []
         seen_ids = set()
-        for med_name in extracted[:5]:
+        for med_name in extracted_names[:5]:
             recs = self.recommend(med_name, n=3)
             for r in recs:
                 if r['id'] not in seen_ids:
                     seen_ids.add(r['id'])
                     r['for_medicine'] = med_name
                     all_recs.append(r)
-
-        return extracted, all_recs[:12]
+        return extracted_names[:10], exact_matches[:10], all_recs[:12]
 
     def get_stock_based_alternatives(self, medicine_id: int, n: int = 5) -> list:
         """

@@ -267,3 +267,10 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 
 ## 📝 License
 MIT — Free to use and modify.
+
+
+Sequence diagram: system me step-by-step interaction (kaun kis se baat karta hai)
+Flowchart: process ka flow with decisions
+DFD: data ka flow system me
+ER diagram: database tables aur unke relations
+Use case diagram: user system me kya actions karta hai

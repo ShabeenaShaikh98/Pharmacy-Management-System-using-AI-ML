@@ -8,14 +8,19 @@ from django.db.models import Count, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+except ImportError:
+    A4 = None
+    canvas = None
 
 from .models import (
     CustomerProfile,
@@ -484,6 +489,12 @@ class OnlineInvoicePDFAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, order_id):
+        if canvas is None or A4 is None:
+            return Response(
+                {'detail': 'Invoice PDF feature requires reportlab. Install it with: pip install reportlab==4.0.7'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         order = get_object_or_404(
             OnlineOrder.objects.select_related('customer__user', 'payment').prefetch_related('items__medicine'),
             id=order_id
